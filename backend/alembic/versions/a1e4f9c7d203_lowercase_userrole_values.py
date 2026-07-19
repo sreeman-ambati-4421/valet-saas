@@ -9,6 +9,12 @@ member NAMES (PLATFORM_SUPER_ADMIN, ...) instead of its lowercase VALUES
 (platform_super_admin, ...), which is what the API/frontend actually use
 everywhere else. This migration fixes existing data and the constraint to
 match.
+
+The constraint is looked up dynamically by column rather than by the
+'userrole' name we originally asked SQLAlchemy for -- Postgres assigns its
+own default name (e.g. users_role_check) for a CHECK generated inline in
+CREATE TABLE, regardless of the name passed to Enum(), so hardcoding
+'userrole' as the constraint name fails.
 """
 from typing import Sequence, Union
 
@@ -19,23 +25,41 @@ down_revision: Union[str, None] = "b899e208dfe2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-NEW_VALUES = ("platform_super_admin", "tenant_admin", "venue_manager", "valet")
+_DROP_EXISTING_CHECK_SQL = """
+DO $$
+DECLARE
+    existing_constraint text;
+BEGIN
+    SELECT con.conname INTO existing_constraint
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ANY(con.conkey)
+    WHERE rel.relname = 'users' AND att.attname = 'role' AND con.contype = 'c';
+
+    IF existing_constraint IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || quote_ident(existing_constraint);
+    END IF;
+END $$;
+"""
 
 
 def upgrade() -> None:
     op.execute("UPDATE users SET role = lower(role)")
-    # Named CHECK constraint drop/recreate only works reliably via reflection
-    # on Postgres; SQLite (used for local dev/tests) doesn't preserve CHECK
-    # constraint names the same way, and doesn't need this enforced locally.
+    # SQLite (local dev/tests) doesn't need this enforced the same way, and
+    # doesn't support the pg_constraint lookup below.
     if op.get_bind().dialect.name == "postgresql":
-        op.drop_constraint("userrole", "users", type_="check")
-        op.create_check_constraint("userrole", "users", "role IN ('%s')" % "','".join(NEW_VALUES))
+        op.execute(_DROP_EXISTING_CHECK_SQL)
+        op.create_check_constraint(
+            "userrole",
+            "users",
+            "role IN ('platform_super_admin','tenant_admin','venue_manager','valet')",
+        )
 
 
 def downgrade() -> None:
     op.execute("UPDATE users SET role = upper(role)")
     if op.get_bind().dialect.name == "postgresql":
-        op.drop_constraint("userrole", "users", type_="check")
+        op.execute(_DROP_EXISTING_CHECK_SQL)
         op.create_check_constraint(
             "userrole",
             "users",
