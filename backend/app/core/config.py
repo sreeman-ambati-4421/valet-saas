@@ -18,5 +18,17 @@ class Settings(BaseSettings):
     # Used to build the redirect link in staff invite emails.
     frontend_url: str = "http://localhost:5173"
 
+    # Twilio WhatsApp integration. Sandbox number by default -- no business
+    # verification needed for dev/testing. Swap to a real Sender once one
+    # exists.
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_number: str = "whatsapp:+14155238886"
+
+    # The backend's own public URL, used to reconstruct the exact URL Twilio
+    # signed when verifying webhook signatures (can't trust request.url
+    # directly behind Render's reverse proxy).
+    public_base_url: str = "http://localhost:8000"
+
 
 settings = Settings()

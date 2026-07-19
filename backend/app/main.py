@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, me, sessions, staff, tenants, venues
+from app.api import health, me, qrcodes, sessions, staff, tenants, venues, whatsapp_webhook
 from app.core.config import settings
 
 app = FastAPI(title="Valet Parking SaaS API", version="0.1.0")
@@ -20,3 +20,5 @@ app.include_router(tenants.router)
 app.include_router(venues.router)
 app.include_router(sessions.router)
 app.include_router(staff.router)
+app.include_router(qrcodes.router)
+app.include_router(whatsapp_webhook.router)

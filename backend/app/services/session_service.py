@@ -2,10 +2,26 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import twilio_client
 from app.models.session import ALLOWED_TRANSITIONS, SessionEvent, SessionState, ValetSession
 from app.models.user import User
 from app.models.vehicle_guest import Guest, Vehicle
 from app.schemas.session import ParkInput, SessionCreate
+
+GUEST_STATUS_MESSAGES = {
+    SessionState.PARKED: "Your vehicle has been parked safely. Reply 'car' anytime you're ready to have it brought back.",
+    SessionState.READY: "Your car is ready for pickup at the valet stand!",
+    SessionState.DELIVERED: "Thanks for visiting! Hope you have a great day ahead.",
+}
+
+
+async def _notify_guest_of_status(db: AsyncSession, session: ValetSession, to_state: SessionState) -> None:
+    message = GUEST_STATUS_MESSAGES.get(to_state)
+    if message is None:
+        return
+    guest = await db.get(Guest, session.guest_id)
+    if guest is not None:
+        twilio_client.send_whatsapp_text(guest.whatsapp_phone_number, message)
 
 
 def normalize_registration(raw: str) -> str:
@@ -53,7 +69,7 @@ async def record_event(
 
 
 async def create_session(
-    db: AsyncSession, tenant_id: str, venue_id: str, actor: User, data: SessionCreate
+    db: AsyncSession, tenant_id: str, venue_id: str, actor: User | None, data: SessionCreate
 ) -> ValetSession:
     guest = await get_or_create_guest(db, data.guest_phone_number, data.guest_name)
     vehicle = await get_or_create_vehicle(db, data.registration_number)
@@ -110,7 +126,7 @@ async def transition_session(
     db: AsyncSession,
     session: ValetSession,
     to_state: SessionState,
-    actor: User,
+    actor: User | None,
     note: str | None = None,
     park_input: ParkInput | None = None,
 ) -> ValetSession:
@@ -130,4 +146,6 @@ async def transition_session(
     await record_event(db, session, from_state, to_state, actor, note=note)
     await db.commit()
     await db.refresh(session)
+
+    await _notify_guest_of_status(db, session, to_state)
     return session

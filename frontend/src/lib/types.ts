@@ -34,6 +34,15 @@ export interface Venue {
   created_at: string
 }
 
+export interface QRCode {
+  id: string
+  venue_id: string
+  token: string
+  label: string | null
+  is_active: boolean
+  wa_link: string
+}
+
 export interface Me {
   id: string
   email: string
