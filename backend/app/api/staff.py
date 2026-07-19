@@ -25,12 +25,14 @@ async def invite_tenant_admin(
 
     try:
         user = await create_invited_user(
-            db, payload.email, payload.full_name, UserRole.TENANT_ADMIN, tenant_id=tenant_id
+            db, payload.email, payload.full_name, payload.phone_number, UserRole.TENANT_ADMIN, tenant_id=tenant_id
         )
     except StaffInviteError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from None
 
-    return InviteOut(user_id=user.id, email=user.email, role=user.role, message=f"Invite sent to {user.email}")
+    return InviteOut(
+        user_id=user.id, email=user.email, role=user.role, message=f"Invite sent via WhatsApp to {payload.phone_number}"
+    )
 
 
 @router.post("/venues/{venue_id}/staff", response_model=InviteOut, status_code=201)
@@ -53,6 +55,7 @@ async def invite_venue_staff(
             db,
             payload.email,
             payload.full_name,
+            payload.phone_number,
             payload.role,
             tenant_id=venue.tenant_id,
             venue_id=venue_id,
@@ -60,4 +63,6 @@ async def invite_venue_staff(
     except StaffInviteError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from None
 
-    return InviteOut(user_id=user.id, email=user.email, role=user.role, message=f"Invite sent to {user.email}")
+    return InviteOut(
+        user_id=user.id, email=user.email, role=user.role, message=f"Invite sent via WhatsApp to {payload.phone_number}"
+    )

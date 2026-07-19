@@ -7,25 +7,27 @@ class StaffInviteError(Exception):
     pass
 
 
-def invite_user(email: str, redirect_to: str) -> str:
-    """Invite a new user via Supabase's Auth Admin API.
+def create_invite_link(email: str, redirect_to: str) -> tuple[str, str]:
+    """Creates an invited Supabase auth user and returns (user_id, action_link),
+    without Supabase sending anything itself.
 
-    Sends them an email with a link to set their own password -- no
-    password ever passes through our backend or frontend. Returns the
-    newly created Supabase auth user's id.
+    Supabase's own email delivery is rate-limited and unreliable on the free
+    tier; we take the raw link this endpoint hands back and deliver it
+    ourselves via WhatsApp instead. Same underlying account/link mechanism
+    as a normal email invite -- only the delivery channel changes.
     """
-    url = f"{settings.supabase_url}/auth/v1/invite"
+    url = f"{settings.supabase_url}/auth/v1/admin/generate_link"
     headers = {
         "apikey": settings.supabase_service_key,
         "Authorization": f"Bearer {settings.supabase_service_key}",
         "Content-Type": "application/json",
     }
-    body = {"email": email, "options": {"redirect_to": redirect_to}}
+    body = {"type": "invite", "email": email, "options": {"redirect_to": redirect_to}}
 
     try:
         resp = httpx.post(url, headers=headers, json=body, timeout=10)
     except httpx.HTTPError as exc:
-        raise StaffInviteError(f"Could not reach Supabase to send invite: {exc}") from exc
+        raise StaffInviteError(f"Could not reach Supabase to create invite link: {exc}") from exc
 
     if resp.status_code >= 400:
         try:
@@ -35,7 +37,8 @@ def invite_user(email: str, redirect_to: str) -> str:
         raise StaffInviteError(detail)
 
     data = resp.json()
+    action_link = data.get("action_link") or data.get("properties", {}).get("action_link")
     user_id = data.get("id") or data.get("user", {}).get("id")
-    if not user_id:
-        raise StaffInviteError("Supabase invite response did not include a user id")
-    return user_id
+    if not action_link or not user_id:
+        raise StaffInviteError("Supabase generate_link response missing action_link or user id")
+    return user_id, action_link

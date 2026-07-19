@@ -19,6 +19,7 @@ export function TenantAdminDashboard() {
 
   const [staffEmail, setStaffEmail] = useState('')
   const [staffName, setStaffName] = useState('')
+  const [staffPhone, setStaffPhone] = useState('')
   const [staffRole, setStaffRole] = useState<'venue_manager' | 'valet'>('valet')
   const [staffVenueId, setStaffVenueId] = useState(me?.venues[0]?.id ?? '')
   const [staffError, setStaffError] = useState<string | null>(null)
@@ -64,18 +65,24 @@ export function TenantAdminDashboard() {
 
   async function inviteStaff(e: FormEvent) {
     e.preventDefault()
-    if (!accessToken || !staffEmail.trim() || !staffVenueId) return
+    if (!accessToken || !staffEmail.trim() || !staffPhone.trim() || !staffVenueId) return
     setStaffSubmitting(true)
     setStaffError(null)
     setStaffMessage(null)
     try {
       const result = await apiFetch<{ message: string }>(`/venues/${staffVenueId}/staff`, accessToken, {
         method: 'POST',
-        body: JSON.stringify({ email: staffEmail.trim(), full_name: staffName.trim(), role: staffRole }),
+        body: JSON.stringify({
+          email: staffEmail.trim(),
+          full_name: staffName.trim(),
+          phone_number: staffPhone.trim(),
+          role: staffRole,
+        }),
       })
       setStaffMessage(result.message)
       setStaffEmail('')
       setStaffName('')
+      setStaffPhone('')
     } catch (err) {
       setStaffError(err instanceof ApiError ? err.message : 'Failed to send invite')
     } finally {
@@ -155,7 +162,8 @@ export function TenantAdminDashboard() {
       {!me || me.venues.length === 0 ? (
         <p className="text-gray-500">Create a venue first before inviting staff.</p>
       ) : (
-        <form onSubmit={inviteStaff} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-5">
+        <>
+        <form onSubmit={inviteStaff} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
           <input
             required
             type="email"
@@ -169,6 +177,13 @@ export function TenantAdminDashboard() {
             placeholder="Full name"
             value={staffName}
             onChange={(e) => setStaffName(e.target.value)}
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+          />
+          <input
+            required
+            placeholder="WhatsApp number (+91...)"
+            value={staffPhone}
+            onChange={(e) => setStaffPhone(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           />
           <select
@@ -198,6 +213,11 @@ export function TenantAdminDashboard() {
             Send Invite
           </button>
         </form>
+        <p className="mt-2 text-xs text-gray-500">
+          The invite link is sent via WhatsApp (sandbox), not email — the recipient's phone must have joined the
+          Twilio Sandbox first.
+        </p>
+        </>
       )}
       {staffError && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{staffError}</p>}
       {staffMessage && <p className="mt-4 rounded-md bg-emerald-950 px-3 py-2 text-sm text-emerald-300">{staffMessage}</p>}

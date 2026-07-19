@@ -15,6 +15,7 @@ export function PlatformAdminDashboard() {
 
   const [adminEmail, setAdminEmail] = useState('')
   const [adminName, setAdminName] = useState('')
+  const [adminPhone, setAdminPhone] = useState('')
   const [adminTenantId, setAdminTenantId] = useState('')
   const [adminError, setAdminError] = useState<string | null>(null)
   const [adminMessage, setAdminMessage] = useState<string | null>(null)
@@ -56,18 +57,19 @@ export function PlatformAdminDashboard() {
 
   async function inviteTenantAdmin(e: FormEvent) {
     e.preventDefault()
-    if (!accessToken || !adminEmail.trim() || !adminTenantId) return
+    if (!accessToken || !adminEmail.trim() || !adminPhone.trim() || !adminTenantId) return
     setAdminSubmitting(true)
     setAdminError(null)
     setAdminMessage(null)
     try {
       const result = await apiFetch<{ message: string }>(`/tenants/${adminTenantId}/admins`, accessToken, {
         method: 'POST',
-        body: JSON.stringify({ email: adminEmail.trim(), full_name: adminName.trim() }),
+        body: JSON.stringify({ email: adminEmail.trim(), full_name: adminName.trim(), phone_number: adminPhone.trim() }),
       })
       setAdminMessage(result.message)
       setAdminEmail('')
       setAdminName('')
+      setAdminPhone('')
     } catch (err) {
       setAdminError(err instanceof ApiError ? err.message : 'Failed to send invite')
     } finally {
@@ -110,7 +112,8 @@ export function PlatformAdminDashboard() {
       {tenants.length === 0 ? (
         <p className="text-gray-500">Create a tenant first before inviting its admin.</p>
       ) : (
-        <form onSubmit={inviteTenantAdmin} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-4">
+        <>
+        <form onSubmit={inviteTenantAdmin} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
           <input
             required
             type="email"
@@ -124,6 +127,13 @@ export function PlatformAdminDashboard() {
             placeholder="Full name"
             value={adminName}
             onChange={(e) => setAdminName(e.target.value)}
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+          />
+          <input
+            required
+            placeholder="WhatsApp number (+91...)"
+            value={adminPhone}
+            onChange={(e) => setAdminPhone(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           />
           <select
@@ -145,6 +155,11 @@ export function PlatformAdminDashboard() {
             Send Invite
           </button>
         </form>
+        <p className="mt-2 text-xs text-gray-500">
+          The invite link is sent via WhatsApp (sandbox), not email — the recipient's phone must have joined the
+          Twilio Sandbox first.
+        </p>
+        </>
       )}
       {adminError && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{adminError}</p>}
       {adminMessage && <p className="mt-4 rounded-md bg-emerald-950 px-3 py-2 text-sm text-emerald-300">{adminMessage}</p>}

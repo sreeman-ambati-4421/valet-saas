@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import supabase_admin
+from app.core import supabase_admin, twilio_client
 from app.core.config import settings
 from app.models.user import User, UserRole, UserVenueAccess
 
@@ -13,19 +13,22 @@ async def create_invited_user(
     db: AsyncSession,
     email: str,
     full_name: str,
+    phone_number: str,
     role: UserRole,
     tenant_id: str | None,
     venue_id: str | None = None,
 ) -> User:
-    """Invites a user via Supabase Auth (email link to set their own
-    password), then creates the matching app-level User row.
+    """Creates a Supabase-invited user (account still identified by email
+    under the hood) and delivers the invite link over WhatsApp instead of
+    Supabase's own email sending -- avoids Supabase's low free-tier email
+    rate limit and deliverability issues entirely.
 
     tenant_id/venue_id must already be resolved by the caller from
     server-side context (the target venue/tenant), never taken directly
     from client input for this field.
     """
     redirect_to = f"{settings.frontend_url}/accept-invite"
-    supabase_user_id = supabase_admin.invite_user(email, redirect_to)
+    supabase_user_id, action_link = supabase_admin.create_invite_link(email, redirect_to)
 
     user = User(
         supabase_user_id=supabase_user_id,
@@ -53,4 +56,11 @@ async def create_invited_user(
         raise
 
     await db.refresh(user)
+
+    twilio_client.send_whatsapp_text(
+        phone_number,
+        f"Hi {full_name}, you've been invited to the Valet Parking platform. "
+        f"Tap this link to set up your account: {action_link}",
+    )
+
     return user
