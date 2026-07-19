@@ -22,7 +22,10 @@ def create_invite_link(email: str, redirect_to: str) -> tuple[str, str]:
         "Authorization": f"Bearer {settings.supabase_service_key}",
         "Content-Type": "application/json",
     }
-    body = {"type": "invite", "email": email, "options": {"redirect_to": redirect_to}}
+    # Unlike /auth/v1/invite, generate_link takes redirect_to as a top-level
+    # field, not nested under "options" -- nesting it silently gets ignored
+    # and Supabase falls back to the project's default Site URL instead.
+    body = {"type": "invite", "email": email, "redirect_to": redirect_to}
 
     try:
         resp = httpx.post(url, headers=headers, json=body, timeout=10)
