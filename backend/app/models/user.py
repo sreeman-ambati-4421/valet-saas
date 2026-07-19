@@ -26,7 +26,13 @@ class User(Base, UUIDPk, TimestampMixin):
 
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole, native_enum=False, length=32))
+    # values_callable persists the lowercase .value ("platform_super_admin")
+    # rather than SQLAlchemy's default of the uppercase member .name
+    # ("PLATFORM_SUPER_ADMIN") -- keeps the DB representation consistent with
+    # what the API/frontend use everywhere else.
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, native_enum=False, length=32, values_callable=lambda obj: [e.value for e in obj])
+    )
     is_active: Mapped[bool] = mapped_column(default=True)
 
     venue_access: Mapped[list["UserVenueAccess"]] = relationship(back_populates="user")
