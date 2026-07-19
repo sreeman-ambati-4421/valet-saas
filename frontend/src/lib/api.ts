@@ -27,7 +27,17 @@ export async function apiFetch<T>(
     let detail = res.statusText
     try {
       const body = await res.json()
-      detail = body.detail ?? detail
+      if (Array.isArray(body.detail)) {
+        // FastAPI validation errors: a list of {loc, msg, ...} objects, not a string.
+        detail = body.detail
+          .map((e: { loc?: unknown[]; msg?: string }) => {
+            const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : undefined
+            return field ? `${field}: ${e.msg}` : e.msg
+          })
+          .join('; ')
+      } else if (typeof body.detail === 'string') {
+        detail = body.detail
+      }
     } catch {
       /* ignore non-JSON error body */
     }
