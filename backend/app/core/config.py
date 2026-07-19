@@ -15,5 +15,8 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # Used to build the redirect link in staff invite emails.
+    frontend_url: str = "http://localhost:5173"
+
 
 settings = Settings()

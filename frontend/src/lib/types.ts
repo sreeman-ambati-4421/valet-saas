@@ -17,6 +17,23 @@ export interface VenueSummary {
   name: string
 }
 
+export interface Tenant {
+  id: string
+  name: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface Venue {
+  id: string
+  tenant_id: string
+  name: string
+  address: string | null
+  timezone: string
+  is_active: boolean
+  created_at: string
+}
+
 export interface Me {
   id: string
   email: string
