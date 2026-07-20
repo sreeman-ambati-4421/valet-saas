@@ -68,6 +68,7 @@ async def make_user(
     tenant: Tenant | None = None,
     venues: list[Venue] | None = None,
     email: str | None = None,
+    is_active: bool = True,
 ) -> User:
     user = User(
         supabase_user_id=str(uuid.uuid4()),
@@ -75,6 +76,7 @@ async def make_user(
         email=email or f"{uuid.uuid4()}@example.com",
         full_name="Test User",
         role=role,
+        is_active=is_active,
     )
     db.add(user)
     await db.flush()

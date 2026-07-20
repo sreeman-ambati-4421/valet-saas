@@ -3,12 +3,26 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, get_current_user_allow_inactive
 from app.models.tenant import Venue
 from app.models.user import User, UserRole, UserVenueAccess
 from app.schemas.user import MeOut, VenueSummary
 
 router = APIRouter(tags=["me"])
+
+
+@router.post("/me/confirm", status_code=204)
+async def confirm_invite_accepted(
+    current_user: User = Depends(get_current_user_allow_inactive),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Hit right after an invited user sets their password on the
+    accept-invite page. Their Supabase session at that point is proof they
+    control the account -- that's what actually activates them, not the
+    invite being sent."""
+    if not current_user.is_active:
+        current_user.is_active = True
+        await db.commit()
 
 
 @router.get("/me", response_model=MeOut)

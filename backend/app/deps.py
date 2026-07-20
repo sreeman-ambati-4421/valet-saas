@@ -10,9 +10,9 @@ from app.models.user import User, UserRole, UserVenueAccess
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
+async def _resolve_user_from_token(
+    credentials: HTTPAuthorizationCredentials | None,
+    db: AsyncSession,
 ) -> User:
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")
@@ -28,10 +28,30 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.supabase_user_id == supabase_user_id))
     user = result.scalar_one_or_none()
-    if user is None or not user.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "No active account for this token")
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "No account for this token")
 
     return user
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    user = await _resolve_user_from_token(credentials, db)
+    if not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "No active account for this token")
+    return user
+
+
+async def get_current_user_allow_inactive(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Same as get_current_user but does not require is_active -- only for
+    the self-confirm endpoint an invited-but-not-yet-activated user hits
+    right after setting their password."""
+    return await _resolve_user_from_token(credentials, db)
 
 
 def require_role(*allowed_roles: UserRole):

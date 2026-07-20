@@ -37,7 +37,10 @@ async def create_invited_user(
         email=email,
         full_name=full_name,
         role=role,
-        is_active=True,
+        # Stays inactive until they actually set a password and hit
+        # POST /me/confirm -- an unaccepted invite must not be
+        # indistinguishable from a real active staff member.
+        is_active=False,
     )
     db.add(user)
     try:

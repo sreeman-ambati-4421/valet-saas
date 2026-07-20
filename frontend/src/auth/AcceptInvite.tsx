@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { apiFetch, ApiError } from '../lib/api'
 
 export function AcceptInvite() {
   const navigate = useNavigate()
@@ -17,12 +18,32 @@ export function AcceptInvite() {
     }
     setSubmitting(true)
     setError(null)
-    const { error } = await supabase.auth.updateUser({ password })
-    setSubmitting(false)
-    if (error) {
-      setError(error.message)
+
+    const { error: updateError } = await supabase.auth.updateUser({ password })
+    if (updateError) {
+      setSubmitting(false)
+      setError(updateError.message)
       return
     }
+
+    // Setting the password proves they control the account -- that's what
+    // actually activates them in our own users table, not the invite
+    // merely having been sent.
+    const { data } = await supabase.auth.getSession()
+    const accessToken = data.session?.access_token ?? null
+    try {
+      await apiFetch('/me/confirm', accessToken, { method: 'POST' })
+    } catch (err) {
+      setSubmitting(false)
+      setError(
+        err instanceof ApiError
+          ? `Password was set, but activating your account failed: ${err.message}. Try submitting again.`
+          : 'Password was set, but activating your account failed. Try submitting again.'
+      )
+      return
+    }
+
+    setSubmitting(false)
     navigate('/', { replace: true })
   }
 
