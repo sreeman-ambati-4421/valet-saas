@@ -145,3 +145,23 @@ async def test_duplicate_invite_surfaces_clean_error_not_500(client, db):
     assert resp.status_code == 422
     assert "already registered" in resp.json()["detail"]
     mock_send.assert_not_called()
+
+
+async def test_resubmitting_same_email_fails_clean_not_500(client, db):
+    # Reproduces a real production crash: submitting the same invite twice
+    # (e.g. a double-click) previously hit an unhandled DB unique-constraint
+    # error on the second attempt instead of a clean 4xx.
+    tenant = await make_tenant(db)
+    venue = await make_venue(db, tenant)
+    admin = await make_user(db, UserRole.TENANT_ADMIN, tenant=tenant)
+    payload = {"email": "resend@example.com", "full_name": "Re Send", "phone_number": "+911111111111", "role": "valet"}
+
+    with patch("app.core.supabase_admin.create_invite_link", side_effect=_mock_generate_link), patch(
+        "app.core.twilio_client.send_whatsapp_text"
+    ):
+        first = await client.post(f"/venues/{venue.id}/staff", json=payload, headers=auth_header(admin))
+        second = await client.post(f"/venues/{venue.id}/staff", json=payload, headers=auth_header(admin))
+
+    assert first.status_code == 201
+    assert second.status_code == 422
+    assert "already invited or registered" in second.json()["detail"]

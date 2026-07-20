@@ -1,10 +1,12 @@
 import logging
 import urllib.parse
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import supabase_admin, twilio_client
 from app.core.config import settings
+from app.core.supabase_admin import StaffInviteError
 from app.models.user import User, UserRole, UserVenueAccess
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,16 @@ async def create_invited_user(
     server-side context (the target venue/tenant), never taken directly
     from client input for this field.
     """
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none() is not None:
+        # Covers both a genuinely already-active account and a duplicate
+        # resubmission of the same pending invite -- either way there's
+        # nothing new to create, and hitting Supabase's API again would
+        # either fail or just reissue a link for the same underlying
+        # account, so fail fast with a clear message instead of a raw
+        # DB constraint error.
+        raise StaffInviteError(f"A user with email {email} is already invited or registered.")
+
     redirect_to = f"{settings.frontend_url}/accept-invite"
     supabase_user_id, action_link = supabase_admin.create_invite_link(email, redirect_to)
 
