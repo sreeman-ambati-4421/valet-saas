@@ -28,7 +28,11 @@ async def test_tenant_admin_invites_venue_staff(client, db):
     assert body["role"] == "valet"
     mock_send.assert_called_once()
     assert mock_send.call_args[0][0] == "+911111111111"
-    assert "https://example.supabase.co/verify" in mock_send.call_args[0][1]
+    # Sent as our own click-through page (defeats WhatsApp's link-preview
+    # pre-fetch consuming the single-use token), with the real link embedded.
+    sent_message = mock_send.call_args[0][1]
+    assert "/invite-redirect?to=" in sent_message
+    assert "example.supabase.co" in sent_message
 
     # confirm the created user actually has venue access and correct tenant
     me_resp = await client.get(f"/venues/{venue.id}", headers=auth_header(admin))

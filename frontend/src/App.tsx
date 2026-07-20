@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleHome } from './auth/RoleHome'
 import { LoginPage } from './auth/LoginPage'
 import { AcceptInvite } from './auth/AcceptInvite'
+import { InviteRedirect } from './auth/InviteRedirect'
 import { ValetDashboard } from './routes/valet/ValetDashboard'
 import { ManagerDashboard } from './routes/manager/ManagerDashboard'
 import { TenantAdminDashboard } from './routes/tenant-admin/TenantAdminDashboard'
@@ -16,6 +17,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
+          <Route path="/invite-redirect" element={<InviteRedirect />} />
           <Route path="/" element={<RoleHome />} />
           <Route
             path="/valet"

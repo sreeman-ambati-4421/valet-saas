@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,10 +58,16 @@ async def create_invited_user(
 
     await db.refresh(user)
 
+    # Route through our own click-through page rather than sending the raw
+    # Supabase link directly: WhatsApp auto-fetches links to generate a
+    # preview card the moment the message arrives, which would otherwise
+    # consume the single-use invite token before the recipient ever taps it.
+    click_through_url = f"{settings.frontend_url}/invite-redirect?to={urllib.parse.quote(action_link, safe='')}"
+
     twilio_client.send_whatsapp_text(
         phone_number,
         f"Hi {full_name}, you've been invited to the Valet Parking platform. "
-        f"Tap this link to set up your account: {action_link}",
+        f"Tap this link to set up your account: {click_through_url}",
     )
 
     return user
