@@ -9,4 +9,11 @@ if (!url || !anonKey) {
   )
 }
 
-export const supabase = createClient(url, anonKey)
+// PKCE (the client's default flow) doesn't support invite/magic links --
+// it requires the same browser/device to both start and finish the auth
+// flow, which breaks for a link generated on our backend and clicked on
+// the recipient's own phone via WhatsApp. Implicit flow has no such
+// same-device requirement.
+export const supabase = createClient(url, anonKey, {
+  auth: { flowType: 'implicit' },
+})
