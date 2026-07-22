@@ -7,7 +7,7 @@ Multi-tenant, WhatsApp-first valet parking management platform. Full business re
 **Roles.** There is no driver-facing role: valet drivers never touch the app. They're coordinated verbally by whoever's at the desk.
 - `saas_owner` — platform operator; onboards tenants and their business owner.
 - `business_owner` — owns a tenant (hotel/restaurant/venue group); manages venues, QR codes, and desk staff across all their venues.
-- `valet_desk` — the person at the valet desk; accepts guest requests, dispatches drivers verbally, and reports status back over WhatsApp (park confirmed / retrieving / ready).
+- `valet_desk` — the person at the valet desk; accepts guest requests, dispatches drivers verbally, and reports status back over WhatsApp (park confirmed / retrieving / ready). New requests also notify every desk person with access to that venue over WhatsApp, with a short code (`ACCEPT-<code>`) they can reply with to claim it remotely — same underlying atomic accept as the dashboard button, so only one of them wins if both try.
 
 ## Architecture
 

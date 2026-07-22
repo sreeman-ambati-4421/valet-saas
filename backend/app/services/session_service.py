@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import twilio_client
 from app.models.session import ALLOWED_TRANSITIONS, SessionEvent, SessionState, ValetSession
-from app.models.user import User
+from app.models.user import User, UserRole, UserVenueAccess
 from app.models.vehicle_guest import Guest, Vehicle
 from app.schemas.session import ParkInput, SessionCreate
 
@@ -26,6 +26,32 @@ async def _notify_guest_of_status(db: AsyncSession, session: ValetSession, to_st
 
 def normalize_registration(raw: str) -> str:
     return "".join(raw.split()).upper()
+
+
+def short_code(session_id: str) -> str:
+    """A human-typeable stand-in for a session's full UUID, used in the
+    "reply ACCEPT-<code>" WhatsApp notification -- not stored separately,
+    just derived from the id whenever needed."""
+    return session_id.replace("-", "").upper()[-6:]
+
+
+async def _notify_desk_staff_of_new_request(db: AsyncSession, session: ValetSession) -> None:
+    vehicle = await db.get(Vehicle, session.vehicle_id)
+    reg = vehicle.registration_number if vehicle else "a vehicle"
+    result = await db.execute(
+        select(User)
+        .join(UserVenueAccess, UserVenueAccess.user_id == User.id)
+        .where(
+            UserVenueAccess.venue_id == session.venue_id,
+            User.role == UserRole.VALET_DESK,
+            User.is_active.is_(True),
+        )
+    )
+    for desk_user in result.scalars().all():
+        twilio_client.send_whatsapp_text(
+            desk_user.phone_number,
+            f"New request: {reg}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
+        )
 
 
 async def get_or_create_guest(db: AsyncSession, phone_number: str, name: str | None) -> Guest:
@@ -92,6 +118,7 @@ async def create_session(
     await record_event(db, session, None, SessionState.REQUESTED, actor, note="Session created")
     await db.commit()
     await db.refresh(session)
+    await _notify_desk_staff_of_new_request(db, session)
     return session
 
 
