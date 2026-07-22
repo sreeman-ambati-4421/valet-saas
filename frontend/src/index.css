@@ -7,3 +7,14 @@ body {
 #root {
   min-height: 100svh;
 }
+
+/* iOS Safari auto-zooms on focusing any input under 16px -- keep form
+   fields at 16px on small screens regardless of the text size utility
+   class applied, so tapping into a field never triggers that zoom. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

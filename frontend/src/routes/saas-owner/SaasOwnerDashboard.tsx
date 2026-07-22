@@ -78,13 +78,13 @@ export function SaasOwnerDashboard() {
   return (
     <Layout title="SaaS Owner">
       <h2 className="mb-2 text-sm font-medium text-gray-400">Tenants</h2>
-      <form onSubmit={createTenant} className="mb-4 flex gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+      <form onSubmit={createTenant} className="mb-4 flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:flex-row">
         <input
           required
           placeholder="Tenant / business name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+          className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm sm:flex-1"
         />
         <button
           type="submit"
@@ -100,8 +100,8 @@ export function SaasOwnerDashboard() {
         {tenants.length === 0 && <p className="text-gray-500">No tenants yet.</p>}
         {tenants.map((t) => (
           <div key={t.id} className="rounded-lg border border-gray-800 bg-gray-900 p-4">
-            <p className="font-medium">{t.name}</p>
-            <p className="text-xs text-gray-500">{t.id}</p>
+            <p className="truncate font-medium">{t.name}</p>
+            <p className="truncate text-xs text-gray-500">{t.id}</p>
           </div>
         ))}
       </div>

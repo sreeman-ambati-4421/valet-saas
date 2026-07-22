@@ -182,14 +182,14 @@ export function BusinessOwnerDashboard() {
           const availableCount = tags.filter((t) => t.status === 'available').length
           return (
             <div key={v.id} className="rounded-lg border border-gray-800 bg-gray-900 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{v.name}</p>
-                  <p className="text-xs text-gray-500">{v.id}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{v.name}</p>
+                  <p className="truncate text-xs text-gray-500">{v.id}</p>
                 </div>
                 <button
                   onClick={() => toggleVenueTags(v.id)}
-                  className="rounded-md border border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-800"
+                  className="shrink-0 self-start rounded-md border border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-800 sm:self-auto"
                 >
                   {isExpanded ? 'Hide Tags' : 'Manage Key Tags'}
                 </button>
@@ -201,7 +201,7 @@ export function BusinessOwnerDashboard() {
                     {tags.length} tag{tags.length === 1 ? '' : 's'} total, {availableCount} available.
                   </p>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <input
                       type="number"
                       min={1}

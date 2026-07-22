@@ -125,7 +125,7 @@ export function ValetDeskDashboard() {
 
       {error && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{error}</p>}
 
-      <form onSubmit={createSession} className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
+      <form onSubmit={createSession} className="mb-1 grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
         <input
           required
           placeholder="Guest phone (+91...)"
@@ -140,26 +140,29 @@ export function ValetDeskDashboard() {
           className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
         />
         <button type="submit" className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium hover:bg-indigo-500">
-          New Request (for a guest without WhatsApp)
+          New Request
         </button>
       </form>
+      <p className="mb-6 text-xs text-gray-500">For a guest without WhatsApp.</p>
 
       {parkingSession && (
-        <form onSubmit={submitPark} className="mb-6 flex items-center gap-3 rounded-lg border border-amber-800 bg-amber-950/40 p-4">
+        <form onSubmit={submitPark} className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-800 bg-amber-950/40 p-4 sm:flex-row sm:items-center">
           <span className="text-sm">Parking {parkingSession.tag_label} — registration number:</span>
           <input
             required
             autoFocus
             value={parkReg}
             onChange={(e) => setParkReg(e.target.value)}
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm sm:flex-1"
           />
-          <button type="submit" className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium hover:bg-amber-500">
-            Confirm Parked
-          </button>
-          <button type="button" onClick={() => setParkingSession(null)} className="text-sm text-gray-400">
-            Cancel
-          </button>
+          <div className="flex gap-3">
+            <button type="submit" className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium hover:bg-amber-500">
+              Confirm Parked
+            </button>
+            <button type="button" onClick={() => setParkingSession(null)} className="text-sm text-gray-400">
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
@@ -174,10 +177,10 @@ export function ValetDeskDashboard() {
           const next = waitingOnGuestWhatsapp ? undefined : NEXT_ACTION[s.state]
 
           return (
-            <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4">
-              <div>
+            <div key={s.id} className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-medium">{s.tag_label ?? 'Unknown tag'}</p>
-                <p className="text-sm text-gray-400">
+                <p className="truncate text-sm text-gray-400">
                   {s.guest_phone_number} · <span className="uppercase tracking-wide">{s.state.replace('_', ' ')}</span>
                   {s.registration_number ? ` · ${s.registration_number}` : ''}
                 </p>
@@ -187,7 +190,7 @@ export function ValetDeskDashboard() {
                 <button
                   disabled={busyId === s.id}
                   onClick={() => void runAction(s, 'accept')}
-                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 disabled:opacity-50"
+                  className="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 disabled:opacity-50"
                 >
                   Accept
                 </button>
@@ -199,7 +202,7 @@ export function ValetDeskDashboard() {
                   onClick={() =>
                     next.path === 'park' ? setParkingSession(s) : void runAction(s, next.path)
                   }
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
+                  className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
                 >
                   {next.label}
                 </button>
