@@ -1,6 +1,6 @@
 # Valet Parking SaaS
 
-Multi-tenant, WhatsApp-first valet parking management platform. Full business requirements: [`docs/valet_parking_brd.pdf`](docs/valet_parking_brd.pdf).
+Multi-tenant, WhatsApp-first valet parking management platform. Current business requirements, reflecting what's actually built: [`docs/valet_parking_brd_v2.md`](docs/valet_parking_brd_v2.md). The original planning document, [`docs/valet_parking_brd.pdf`](docs/valet_parking_brd.pdf), is kept for historical reference only — several of its concepts (fixed venue QR, email-based login, a driver-facing role) were superseded during implementation.
 
 **Current status: Phase 1 — Foundation + thin vertical slice.** Auth, tenancy, RBAC, WhatsApp/Twilio integration (tag scan → status updates), and a full session lifecycle (request → accept → park → retrieval requested → retrieving → ready → complete) are working end-to-end.
 
@@ -68,5 +68,5 @@ From there, a `saas_owner` invites `business_owner`s, who invite `valet_desk` st
 ```
 backend/    FastAPI app, SQLAlchemy models, Alembic migrations, tests, RLS policies
 frontend/   React/TS PWA (valet desk, business owner, SaaS owner)
-docs/       Business Requirements Document (source of truth for scope)
+docs/       Business Requirements Documents -- v2 (current) and the original v1 PDF (historical)
 ```
