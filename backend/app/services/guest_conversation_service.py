@@ -45,13 +45,16 @@ async def _handle_qr_scan(db: AsyncSession, guest: Guest, token: str) -> None:
     result = await db.execute(select(QRCode).where(QRCode.token == token, QRCode.is_active.is_(True)))
     qr = result.scalar_one_or_none()
     if qr is None:
-        _reply(guest.whatsapp_phone_number, "Sorry, this tag isn't valid. Please ask a staff member for help.")
+        _reply(
+            guest.whatsapp_phone_number,
+            "*⚠️ Invalid Tag*\nSorry, this tag isn't valid. Please ask a staff member for help.",
+        )
         return
 
     if qr.status != TagStatus.AVAILABLE:
         _reply(
             guest.whatsapp_phone_number,
-            "Sorry, this tag is currently in use. Please ask a staff member for help.",
+            "*⚠️ Tag In Use*\nSorry, this tag is currently in use. Please ask a staff member for help.",
         )
         return
 
@@ -64,14 +67,15 @@ async def _handle_qr_scan(db: AsyncSession, guest: Guest, token: str) -> None:
         # instant between our availability check and actually claiming it.
         _reply(
             guest.whatsapp_phone_number,
-            "Sorry, that tag was just claimed by someone else. Please ask a staff member for help.",
+            "*⚠️ Tag Just Claimed*\nSorry, that tag was just claimed by someone else. Please ask a staff member "
+            "for help.",
         )
         return
 
     _reply(
         guest.whatsapp_phone_number,
-        f"Welcome to {venue.name if venue else 'our valet service'}! We've got your request -- a valet will "
-        "be with you shortly. Reply 'car' anytime you're ready to have it brought back.",
+        f"*✅ Request Received*\nWelcome to {venue.name if venue else 'our valet service'}! We've got your "
+        "request -- a valet will be with you shortly. We'll text you once it's parked.",
     )
 
 
@@ -86,10 +90,13 @@ async def _handle_general_message(db: AsyncSession, guest: Guest, text: str) -> 
         await session_service.transition_session(
             db, session, SessionState.RETRIEVAL_REQUESTED, None, note="Guest requested retrieval via WhatsApp"
         )
-        _reply(guest.whatsapp_phone_number, "Got it! We're bringing your car around now.")
+        _reply(
+            guest.whatsapp_phone_number,
+            "*✅ Request Confirmed*\nWe've received your request -- a driver will be dispatched shortly.",
+        )
         return
 
     _reply(
         guest.whatsapp_phone_number,
-        f"Your car's current status: {session.state.value.replace('_', ' ').title()}.",
+        f"*ℹ️ Status Update*\nYour car's current status: {session.state.value.replace('_', ' ').title()}.",
     )

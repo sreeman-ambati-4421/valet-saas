@@ -73,8 +73,8 @@ async def create_invited_user(
     accept_url = f"{settings.frontend_url}/accept-invite?token={invite_token}"
     twilio_client.send_whatsapp_text(
         phone_number,
-        f"Hi {full_name}, you've been invited to the Valet Parking platform. "
-        f"Tap this link to set your password and get started: {accept_url}",
+        f"*👋 You're Invited!*\nHi {full_name}, you've been invited to the Valet Parking platform. Tap here to "
+        f"set your password and get started: {accept_url}",
     )
 
     return user

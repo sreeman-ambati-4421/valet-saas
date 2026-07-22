@@ -12,9 +12,12 @@ from app.schemas.session import ParkInput, SessionCreate
 TAG_NOT_AVAILABLE_DETAIL = "That tag is not available."
 
 GUEST_STATUS_MESSAGES = {
-    SessionState.PARKED: "Your vehicle has been parked safely. Reply 'car' anytime you're ready to have it brought back.",
-    SessionState.RETRIEVING: "Your vehicle is being retrieved.",
-    SessionState.READY: "Your car is ready for pickup!",
+    SessionState.PARKED: (
+        "*🅿️ Vehicle Parked*\nYour vehicle has been parked safely. Reply 'car' anytime you're ready to have "
+        "it brought back."
+    ),
+    SessionState.RETRIEVING: "*🚗 On The Way*\nYour vehicle is on the way to you now.",
+    SessionState.READY: "*🎉 Ready for Pickup!*\nYour car is ready and waiting for you.",
 }
 
 
@@ -53,7 +56,7 @@ async def _notify_desk_staff_of_new_request(db: AsyncSession, session: ValetSess
     for desk_user in result.scalars().all():
         twilio_client.send_whatsapp_text(
             desk_user.phone_number,
-            f"New request: {tag_label}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
+            f"*🔔 New Request*\n{tag_label}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
         )
 
 

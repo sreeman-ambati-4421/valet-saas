@@ -37,7 +37,7 @@ async def handle_inbound_message(db: AsyncSession, user: User, body: str) -> Non
         return
 
     if user.role != UserRole.VALET_DESK:
-        _reply(user.phone_number, "Only valet desk staff can accept requests this way.")
+        _reply(user.phone_number, "*⛔ Not Authorized*\nOnly valet desk staff can accept requests this way.")
         return
 
     code = match.group(1).upper()
@@ -46,7 +46,7 @@ async def handle_inbound_message(db: AsyncSession, user: User, body: str) -> Non
     )
     venue_ids = [row[0] for row in venue_ids_result.all()]
     if not venue_ids:
-        _reply(user.phone_number, "You don't have access to any venues yet.")
+        _reply(user.phone_number, "*⚠️ No Access*\nYou don't have access to any venues yet.")
         return
 
     candidates_result = await db.execute(
@@ -60,15 +60,18 @@ async def handle_inbound_message(db: AsyncSession, user: User, body: str) -> Non
         (s for s in candidates_result.scalars().all() if session_service.short_code(s.id) == code), None
     )
     if session is None:
-        _reply(user.phone_number, "That request code wasn't found or has already been claimed.")
+        _reply(
+            user.phone_number,
+            "*⚠️ Not Found*\nThat request code wasn't found or has already been claimed.",
+        )
         return
 
     try:
         accepted = await session_service.accept_session(db, session.id, user)
     except HTTPException:
-        _reply(user.phone_number, "Someone else already claimed that request.")
+        _reply(user.phone_number, "*⚠️ Already Claimed*\nSomeone else already claimed that request.")
         return
 
     vehicle = await db.get(Vehicle, accepted.vehicle_id) if accepted.vehicle_id else None
     reg = vehicle.registration_number if vehicle else "the vehicle"
-    _reply(user.phone_number, f"You've got it -- {reg}.")
+    _reply(user.phone_number, f"*✅ Job Accepted*\nYou've got it -- {reg}.")
