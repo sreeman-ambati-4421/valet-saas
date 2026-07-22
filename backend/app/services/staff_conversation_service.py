@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import twilio_client
+from app.core import whatsapp_client
 from app.models.session import SessionState, ValetSession
 from app.models.user import User, UserRole, UserVenueAccess
 from app.models.vehicle_guest import Vehicle
@@ -17,7 +17,7 @@ ACCEPT_PATTERN = re.compile(r"^ACCEPT-([A-Z0-9]{6})$", re.IGNORECASE)
 
 
 def _reply(to: str, body: str) -> None:
-    twilio_client.send_whatsapp_text(to, body)
+    whatsapp_client.send_whatsapp_text(to, body)
 
 
 async def find_staff_user(db: AsyncSession, phone_number: str) -> User | None:

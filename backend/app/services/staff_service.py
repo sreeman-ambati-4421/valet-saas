@@ -3,7 +3,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import supabase_admin, twilio_client
+from app.core import supabase_admin, whatsapp_client
 from app.core.config import settings
 from app.core.security import create_invite_token
 from app.core.supabase_admin import StaffInviteError
@@ -71,7 +71,7 @@ async def create_invited_user(
 
     invite_token = create_invite_token(user.id)
     accept_url = f"{settings.frontend_url}/accept-invite?token={invite_token}"
-    twilio_client.send_whatsapp_text(
+    whatsapp_client.send_whatsapp_text(
         phone_number,
         f"*👋 You're Invited!*\nHi {full_name}, you've been invited to the Valet Parking platform. Tap here to "
         f"set your password and get started: {accept_url}",

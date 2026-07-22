@@ -9,14 +9,38 @@ DESK_PHONE = "+919000000001"
 OWNER_PHONE = "+919000000002"
 
 
+def _meta_payload(from_phone: str, body: str) -> dict:
+    return {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messages": [
+                                {
+                                    "from": from_phone.lstrip("+"),
+                                    "id": "wamid.test",
+                                    "type": "text",
+                                    "text": {"body": body},
+                                    "timestamp": "1700000000",
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+
+
 async def _post_webhook(client, from_phone: str, body: str):
-    with patch("app.core.twilio_client.verify_webhook_signature", return_value=True), patch(
-        "app.core.twilio_client.send_whatsapp_text"
+    with patch("app.core.whatsapp_client.verify_webhook_signature", return_value=True), patch(
+        "app.core.whatsapp_client.send_whatsapp_text"
     ) as mock_send:
         resp = await client.post(
-            "/webhooks/twilio/whatsapp",
-            data={"From": f"whatsapp:{from_phone}", "Body": body},
-            headers={"X-Twilio-Signature": "fake"},
+            "/webhooks/whatsapp",
+            json=_meta_payload(from_phone, body),
+            headers={"X-Hub-Signature-256": "sha256=fake"},
         )
     return resp, mock_send
 
@@ -38,7 +62,7 @@ async def test_new_session_notifies_desk_staff_with_access(client, db):
     owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, phone_number=OWNER_PHONE)
     desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue], phone_number=DESK_PHONE)
 
-    with patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
+    with patch("app.core.whatsapp_client.send_whatsapp_text") as mock_send:
         session = await _create_session(client, db, owner, venue)
 
     mock_send.assert_called_once()
@@ -54,7 +78,7 @@ async def test_valet_desk_accepts_via_whatsapp_reply(client, db):
     owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, phone_number=OWNER_PHONE)
     desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue], phone_number=DESK_PHONE)
 
-    with patch("app.core.twilio_client.send_whatsapp_text"):
+    with patch("app.core.whatsapp_client.send_whatsapp_text"):
         session = await _create_session(client, db, owner, venue)
 
     code = session_service.short_code(session["id"])
@@ -75,7 +99,7 @@ async def test_business_owner_cannot_accept_via_whatsapp(client, db):
     venue = await make_venue(db, tenant)
     owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue], phone_number=OWNER_PHONE)
 
-    with patch("app.core.twilio_client.send_whatsapp_text"):
+    with patch("app.core.whatsapp_client.send_whatsapp_text"):
         session = await _create_session(client, db, owner, venue)
 
     code = session_service.short_code(session["id"])
@@ -108,7 +132,7 @@ async def test_whatsapp_accept_loses_race_to_app_accept(client, db):
     desk1 = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue], phone_number=DESK_PHONE)
     desk2 = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue], phone_number="+919000000003")
 
-    with patch("app.core.twilio_client.send_whatsapp_text"):
+    with patch("app.core.whatsapp_client.send_whatsapp_text"):
         session = await _create_session(client, db, owner, venue)
 
     # desk1 accepts through the app first.

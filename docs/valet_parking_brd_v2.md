@@ -48,7 +48,7 @@ separate once the platform reached three roles total.
 **Phone number + password. No email, anywhere, at any point.**
 
 - Login: `phone number + password`, verified against Supabase Auth. No OTP,
-  no magic link, no Twilio Verify involvement in login at all.
+  no magic link involvement in login at all.
 - **Bootstrapping the first SaaS Owner** is a one-time manual step: create
   the Supabase Auth user directly (phone + a real password you choose),
   then insert the matching `users` row with `role = 'saas_owner'`.
@@ -71,14 +71,11 @@ separate once the platform reached three roles total.
   - Once the password is set, the account activates and the recipient
     signs in normally at `/login`.
 
-**Why not WhatsApp OTP login?** It was tried first. Two blockers ruled it
-out for this deployment:
-1. Twilio Verify's WhatsApp channel requires an approved WhatsApp Business
-   Sender — not available while running on the WhatsApp Sandbox, and not
-   worth the added Meta approval dependency just for login.
-2. Twilio Verify's SMS channel would have worked without that dependency,
-   but was passed over in favor of the simpler, fully-controlled
-   password + invite-link design above.
+**Why not WhatsApp OTP login?** It was tried first, but an OTP-based
+channel requires an approved WhatsApp Business Sender and adds a
+verification-provider dependency just for login. That was passed over in
+favor of the simpler, fully-controlled password + invite-link design
+above.
 
 ---
 
@@ -177,32 +174,35 @@ override — enforced server-side, not just hidden in the UI.
   physically being at the vehicle, so there's nothing to gain from
   supporting those over WhatsApp too.
 
-### 6.3 Provider: Twilio as BSP, moving off the Sandbox
+### 6.3 Provider: Meta WhatsApp Cloud API (direct integration)
 
-Development and testing used **Twilio's WhatsApp Sandbox** — a shared
-number requiring each participant to send a one-time "join" code before
-any message can reach them. **This does not carry over to production.**
+The backend talks directly to Meta's WhatsApp Cloud API (Graph API) — no
+Business Solution Provider in between. Inbound messages arrive at a single
+webhook (`GET`/`POST /webhooks/whatsapp`); outbound messages go straight to
+`https://graph.facebook.com/{version}/{phone_number_id}/messages`.
 
-For production:
+Setup, once, in Meta Business Manager:
 
 1. **Meta Business Manager**: verify the business (name, address, and
    sometimes supporting documents).
 2. **WhatsApp Business Account (WABA)**: created under that Business
-   Manager.
-3. **A dedicated phone number**: must never have been used on regular
-   WhatsApp/WhatsApp Business app before. Not the sandbox number.
-4. **Connect it through Twilio's Senders flow** (an embedded version of
-   Meta's own onboarding, since Twilio acts as Tech Provider). Twilio then
-   holds this number as `TWILIO_WHATSAPP_NUMBER` — swapping it in is an
-   environment-variable change, not a code change.
+   Manager, with a dedicated phone number that must never have been used
+   on the regular WhatsApp/WhatsApp Business app before.
+3. **System User + permanent access token**: generated in Business
+   Manager, granted `whatsapp_business_messaging` — this is what the
+   backend authenticates with (`WHATSAPP_ACCESS_TOKEN`), not a 24-hour
+   test token.
+4. **Webhook configuration**: point Meta's App dashboard at
+   `https://<backend>/webhooks/whatsapp`, with a verify token
+   (`WHATSAPP_VERIFY_TOKEN`) matching what the backend expects, and
+   subscribe to the `messages` field.
 5. **Display name approval** by Meta.
 
-Once on a real number, the Sandbox's join-code requirement disappears —
-any WhatsApp user can be messaged directly. In exchange, **message
-templates become mandatory** for anything the business sends outside an
-open 24-hour conversation window (i.e., anything the business sends
-*before* the recipient has messaged first, or long after their last
-message). Concretely, this affects:
+Any WhatsApp user can be messaged directly — there is no sandbox join-code
+step at any stage. In exchange, **message templates are mandatory** for
+anything the business sends outside an open 24-hour conversation window
+(i.e., anything the business sends *before* the recipient has messaged
+first, or long after their last message). Concretely, this affects:
 
 | Message | Business- or guest/staff-initiated? | Template needed in production? |
 |---|---|---|
@@ -245,8 +245,8 @@ actually used by any endpoint or service):
 - `ParkingZone` / `ParkingSlot` and the corresponding fields on
   `ValetSession` — no zone/slot management was ever built; the physical
   tag now serves the location-tracking purpose these were meant for.
-- `WhatsAppAccount` — Twilio credentials are a single global account via
-  environment variables, not per-tenant database rows.
+- `WhatsAppAccount` — the Meta Cloud API credentials are a single global
+  account via environment variables, not per-tenant database rows.
 - `Subscription` — billing/plan tracking was marked lowest priority in the
   original plan and never built.
 
@@ -255,8 +255,9 @@ actually used by any endpoint or service):
 ## 8. Non-Functional Requirements (unchanged from v1 except where noted)
 
 - **Security**: HTTPS, RBAC enforced server-side (never trust a
-  client-supplied tenant/venue ID), Twilio webhook signature verification,
-  tenant isolation backed by Postgres RLS as defense-in-depth.
+  client-supplied tenant/venue ID), Meta webhook signature verification
+  (`X-Hub-Signature-256`, HMAC-SHA256 keyed with the App Secret), tenant
+  isolation backed by Postgres RLS as defense-in-depth.
 - **Auditability**: every session state transition is recorded with actor
   and timestamp.
 - **Concurrency safety**: job acceptance and tag claiming both use atomic
@@ -275,10 +276,9 @@ authentication and invites, tenancy and RBAC, key-tag generation and
 lifecycle, the full guest WhatsApp conversation, the full staff session
 lifecycle (including remote accept-by-WhatsApp-reply), and audit history.
 
-**Before commercial pilot rollout**, the one remaining gap is moving off
-the WhatsApp Sandbox: complete Meta Business verification, register a real
-WhatsApp Business number through Twilio, and get the 2–3 message templates
-in §6.3 approved. No other architectural changes are anticipated for this.
+**Before commercial pilot rollout**, the one remaining gap is completing
+Meta Business verification and getting the 2–3 message templates in §6.3
+approved. No other architectural changes are anticipated for this.
 
 ---
 

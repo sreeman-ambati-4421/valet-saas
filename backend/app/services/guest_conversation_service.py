@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import twilio_client
+from app.core import whatsapp_client
 from app.models.parking import QRCode, TagStatus
 from app.models.session import SessionState, ValetSession
 from app.models.tenant import Venue
@@ -33,7 +33,7 @@ async def _get_active_session(db: AsyncSession, guest_id: str) -> ValetSession |
 
 
 def _reply(to: str, body: str) -> None:
-    twilio_client.send_whatsapp_text(to, body)
+    whatsapp_client.send_whatsapp_text(to, body)
 
 
 async def handle_inbound_message(db: AsyncSession, from_phone: str, body: str) -> None:

@@ -2,7 +2,7 @@
 
 Multi-tenant, WhatsApp-first valet parking management platform. Current business requirements, reflecting what's actually built: [`docs/valet_parking_brd_v2.md`](docs/valet_parking_brd_v2.md). The original planning document, [`docs/valet_parking_brd.pdf`](docs/valet_parking_brd.pdf), is kept for historical reference only — several of its concepts (fixed venue QR, email-based login, a driver-facing role) were superseded during implementation.
 
-**Current status: Phase 1 — Foundation + thin vertical slice.** Auth, tenancy, RBAC, WhatsApp/Twilio integration (tag scan → status updates), and a full session lifecycle (request → accept → park → retrieval requested → retrieving → ready → complete) are working end-to-end.
+**Current status: Phase 1 — Foundation + thin vertical slice.** Auth, tenancy, RBAC, WhatsApp integration (tag scan → status updates), and a full session lifecycle (request → accept → park → retrieval requested → retrieving → ready → complete) are working end-to-end.
 
 **Physical key tags, not a fixed venue QR.** A venue pre-generates a pool of QR-coded tags, printed onto plastic key fobs. Guest scans a tag on arrival (WhatsApp opens, request created instantly — no reg. number question), the driver keeps that same tag attached to the vehicle's keys, and it's released back to the available pool the moment the session completes. Registration number is captured from the driver at the **Mark Parked** step instead, since the tag — not the reg. number — is what links guest to vehicle now.
 
@@ -16,7 +16,7 @@ Multi-tenant, WhatsApp-first valet parking management platform. Current business
 - **Frontend** (`/frontend`): React + TypeScript + Vite, PWA-enabled, Tailwind CSS, deployed on Vercel. Serves the SaaS owner, business owner, and valet desk dashboards — all web-based.
 - **Backend** (`/backend`): Python FastAPI + SQLAlchemy (async) + Alembic. Hosted separately from the frontend (Render/Fly.io — TBD).
 - **Data/Auth/Realtime**: Supabase (managed Postgres + Auth + Realtime).
-- **WhatsApp**: Twilio (BSP), for guest conversations and staff invite links — the messaging layer is isolated so this can be swapped for direct Meta Cloud API later without touching core valet logic. Staff authenticate with a phone number + password (set via the invite link); there is no OTP/Twilio Verify involved in login at all.
+- **WhatsApp**: Meta WhatsApp Cloud API (direct integration, no BSP middleman), for guest conversations and staff invite links. Staff authenticate with a phone number + password (set via the invite link); there is no OTP involved in login at all.
 
 ## Setup
 

@@ -32,9 +32,8 @@ async def _generate_unique_token(db: AsyncSession) -> str:
 
 
 def _wa_link(token: str, venue_name: str) -> str:
-    number_digits = settings.twilio_whatsapp_number.replace("whatsapp:", "").replace("+", "")
     text = urllib.parse.quote(f"👋 Hi {venue_name}! My car needs to be parked -- tag {token}.")
-    return f"https://wa.me/{number_digits}?text={text}"
+    return f"https://wa.me/{settings.whatsapp_display_phone_number}?text={text}"
 
 
 def _to_out(qr: QRCode, venue_name: str) -> QRCodeOut:

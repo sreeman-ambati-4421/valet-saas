@@ -15,7 +15,7 @@ async def test_business_owner_invites_venue_staff(client, db):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
+    ), patch("app.core.whatsapp_client.send_whatsapp_text") as mock_send:
         resp = await client.post(
             f"/venues/{venue.id}/staff",
             json={"phone_number": "+911111111111", "full_name": "Desk One"},
@@ -44,7 +44,7 @@ async def test_business_owner_cannot_invite_staff_into_other_tenants_venue(clien
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text"):
+    ), patch("app.core.whatsapp_client.send_whatsapp_text"):
         resp = await client.post(
             f"/venues/{venue_b.id}/staff",
             json={"phone_number": "+911111111111", "full_name": "X"},
@@ -61,7 +61,7 @@ async def test_non_owner_cannot_invite_staff(client, db):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text"):
+    ), patch("app.core.whatsapp_client.send_whatsapp_text"):
         resp = await client.post(
             f"/venues/{venue.id}/staff",
             json={"phone_number": "+911111111111", "full_name": "X"},
@@ -77,7 +77,7 @@ async def test_saas_owner_invites_business_owner(client, db):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
+    ), patch("app.core.whatsapp_client.send_whatsapp_text") as mock_send:
         resp = await client.post(
             f"/tenants/{tenant.id}/admins",
             json={"phone_number": "+912222222222", "full_name": "Owner Two"},
@@ -96,7 +96,7 @@ async def test_business_owner_cannot_invite_other_business_owners(client, db):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text"):
+    ), patch("app.core.whatsapp_client.send_whatsapp_text"):
         resp = await client.post(
             f"/tenants/{tenant.id}/admins",
             json={"phone_number": "+911111111111", "full_name": "X"},
@@ -116,7 +116,7 @@ async def test_duplicate_invite_surfaces_clean_error_not_500(client, db):
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user",
         side_effect=StaffInviteError("Phone number already registered"),
-    ), patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
+    ), patch("app.core.whatsapp_client.send_whatsapp_text") as mock_send:
         resp = await client.post(
             f"/venues/{venue.id}/staff",
             json={"phone_number": "+913333333333", "full_name": "Dupe"},
@@ -139,7 +139,7 @@ async def test_resubmitting_same_phone_number_fails_clean_not_500(client, db):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text"):
+    ), patch("app.core.whatsapp_client.send_whatsapp_text"):
         first = await client.post(f"/venues/{venue.id}/staff", json=payload, headers=auth_header(owner))
         second = await client.post(f"/venues/{venue.id}/staff", json=payload, headers=auth_header(owner))
 

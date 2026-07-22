@@ -33,14 +33,38 @@ async def _make_active_session(db, tenant, venue, guest_phone, state, created_vi
     return session
 
 
+def _meta_payload(from_phone: str, body: str) -> dict:
+    return {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messages": [
+                                {
+                                    "from": from_phone.lstrip("+"),
+                                    "id": "wamid.test",
+                                    "type": "text",
+                                    "text": {"body": body},
+                                    "timestamp": "1700000000",
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+
+
 async def _post_webhook(client, from_phone: str, body: str):
-    with patch("app.core.twilio_client.verify_webhook_signature", return_value=True), patch(
-        "app.core.twilio_client.send_whatsapp_text"
+    with patch("app.core.whatsapp_client.verify_webhook_signature", return_value=True), patch(
+        "app.core.whatsapp_client.send_whatsapp_text"
     ) as mock_send:
         resp = await client.post(
-            "/webhooks/twilio/whatsapp",
-            data={"From": f"whatsapp:{from_phone}", "Body": body},
-            headers={"X-Twilio-Signature": "fake"},
+            "/webhooks/whatsapp",
+            json=_meta_payload(from_phone, body),
+            headers={"X-Hub-Signature-256": "sha256=fake"},
         )
     return resp, mock_send
 
@@ -127,13 +151,13 @@ async def test_keyword_car_while_requested_state_no_transition(client, db):
 
 
 async def test_invalid_signature_returns_403(client, db):
-    with patch("app.core.twilio_client.verify_webhook_signature", return_value=False), patch(
-        "app.core.twilio_client.send_whatsapp_text"
+    with patch("app.core.whatsapp_client.verify_webhook_signature", return_value=False), patch(
+        "app.core.whatsapp_client.send_whatsapp_text"
     ) as mock_send:
         resp = await client.post(
-            "/webhooks/twilio/whatsapp",
-            data={"From": f"whatsapp:{GUEST_PHONE}", "Body": "👋 Hi Venue! My car needs to be parked -- tag ABCDEF."},
-            headers={"X-Twilio-Signature": "bad"},
+            "/webhooks/whatsapp",
+            json=_meta_payload(GUEST_PHONE, "👋 Hi Venue! My car needs to be parked -- tag ABCDEF."),
+            headers={"X-Hub-Signature-256": "sha256=bad"},
         )
     assert resp.status_code == 403
     mock_send.assert_not_called()
@@ -183,7 +207,7 @@ async def test_staff_parking_session_sends_guest_whatsapp(client, db):
     sid = create_resp.json()["id"]
     await client.post(f"/sessions/{sid}/accept", headers=auth_header(desk))
 
-    with patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
+    with patch("app.core.whatsapp_client.send_whatsapp_text") as mock_send:
         park_resp = await client.post(
             f"/sessions/{sid}/park",
             json={"registration_number": "XY1234"},

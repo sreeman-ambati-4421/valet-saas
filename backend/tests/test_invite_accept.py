@@ -18,7 +18,7 @@ async def _invite_desk_staff(client, db, phone_number="+915555555555"):
 
     with patch(
         "app.core.supabase_admin.create_phone_confirmed_user", side_effect=_mock_create_phone_confirmed_user
-    ), patch("app.core.twilio_client.send_whatsapp_text"):
+    ), patch("app.core.whatsapp_client.send_whatsapp_text"):
         resp = await client.post(
             f"/venues/{venue.id}/staff",
             json={"phone_number": phone_number, "full_name": "Desk One"},

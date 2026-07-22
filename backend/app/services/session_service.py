@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import twilio_client
+from app.core import whatsapp_client
 from app.models.parking import QRCode, TagStatus
 from app.models.session import ALLOWED_TRANSITIONS, SessionEvent, SessionState, ValetSession
 from app.models.user import User, UserRole, UserVenueAccess
@@ -27,7 +27,7 @@ async def _notify_guest_of_status(db: AsyncSession, session: ValetSession, to_st
         return
     guest = await db.get(Guest, session.guest_id)
     if guest is not None:
-        twilio_client.send_whatsapp_text(guest.whatsapp_phone_number, message)
+        whatsapp_client.send_whatsapp_text(guest.whatsapp_phone_number, message)
 
 
 def normalize_registration(raw: str) -> str:
@@ -54,7 +54,7 @@ async def _notify_desk_staff_of_new_request(db: AsyncSession, session: ValetSess
         )
     )
     for desk_user in result.scalars().all():
-        twilio_client.send_whatsapp_text(
+        whatsapp_client.send_whatsapp_text(
             desk_user.phone_number,
             f"*🔔 New Request*\n{tag_label}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
         )

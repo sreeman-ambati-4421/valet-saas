@@ -146,8 +146,8 @@ export function SaasOwnerDashboard() {
           </button>
         </form>
         <p className="mt-2 text-xs text-gray-500">
-          They'll get a WhatsApp message (sandbox) with a link to set their password — the recipient's phone
-          must have joined the Twilio Sandbox first. After that, they sign in with this number and password.
+          They'll get a WhatsApp message with a link to set their password, then sign in with this number and
+          password.
         </p>
         </>
       )}
