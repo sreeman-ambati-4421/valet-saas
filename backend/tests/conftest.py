@@ -1,3 +1,4 @@
+import secrets
 import uuid
 
 import pytest
@@ -107,7 +108,10 @@ async def make_venue(db, tenant: Tenant, name: str = "Test Venue") -> Venue:
 async def make_qr_code(
     db, venue: Venue, label: str = "Tag 1", token: str | None = None, status: TagStatus = TagStatus.AVAILABLE
 ) -> QRCode:
-    qr = QRCode(venue_id=venue.id, token=token or f"tok-{uuid.uuid4()}", label=label, status=status)
+    # Real tags always get a 6-char hex token (see qrcodes.py); default to
+    # the same shape here so tests matching the "tag <token>" scan message
+    # pattern behave like production.
+    qr = QRCode(venue_id=venue.id, token=token or secrets.token_hex(3).upper(), label=label, status=status)
     db.add(qr)
     await db.commit()
     await db.refresh(qr)

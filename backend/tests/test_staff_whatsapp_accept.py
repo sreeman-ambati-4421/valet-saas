@@ -132,9 +132,11 @@ async def test_whatsapp_accept_loses_race_to_app_accept(client, db):
 async def test_guest_message_from_unknown_number_still_routes_to_guest_flow(client, db):
     tenant = await make_tenant(db)
     venue = await make_venue(db, tenant)
-    await make_qr_code(db, venue, token="tok-1")
+    qr = await make_qr_code(db, venue)
 
-    resp, mock_send = await _post_webhook(client, "+911234567890", "QR:tok-1")
+    resp, mock_send = await _post_webhook(
+        client, "+911234567890", f"👋 Hi {venue.name}! My car needs to be parked -- tag {qr.token}."
+    )
 
     assert resp.status_code == 200
     mock_send.assert_called_once()

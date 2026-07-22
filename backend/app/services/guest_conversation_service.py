@@ -1,3 +1,5 @@
+import re
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +15,12 @@ from app.services import session_service
 RETRIEVAL_KEYWORDS = {"car", "retrieve", "pickup", "pick up"}
 
 TERMINAL_STATES = {SessionState.COMPLETED, SessionState.CANCELLED}
+
+# Matches the tag's pre-filled scan message, e.g. "Hi Kondapur Branch! My
+# car needs to be parked -- tag A1B3F0." -- anchored to the tag's actual
+# 6-hex-char format so casual mentions of the word "tag" elsewhere in a
+# guest's message can't be mistaken for a scan.
+CODE_PATTERN = re.compile(r"\btag\s+([0-9A-Fa-f]{6})\b", re.IGNORECASE)
 
 
 async def _get_active_session(db: AsyncSession, guest_id: str) -> ValetSession | None:
@@ -34,8 +42,9 @@ async def handle_inbound_message(db: AsyncSession, from_phone: str, body: str) -
     await db.commit()
     await db.refresh(guest)
 
-    if text.upper().startswith("QR:"):
-        await _handle_qr_scan(db, guest, text[3:].strip())
+    code_match = CODE_PATTERN.search(text)
+    if code_match:
+        await _handle_qr_scan(db, guest, code_match.group(1).upper())
         return
 
     await _handle_general_message(db, guest, text)

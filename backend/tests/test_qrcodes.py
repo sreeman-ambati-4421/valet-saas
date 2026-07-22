@@ -1,5 +1,9 @@
+import re
+
 from app.models.user import UserRole
 from tests.conftest import auth_header, make_tenant, make_user, make_venue
+
+HEX6_PATTERN = re.compile(r"^[0-9A-F]{6}$")
 
 
 async def test_business_owner_bulk_creates_tags(client, db):
@@ -18,12 +22,17 @@ async def test_business_owner_bulk_creates_tags(client, db):
     assert len(tags) == 3
     labels = [t["label"] for t in tags]
     assert labels == ["Tag 1", "Tag 2", "Tag 3"]
+    tokens = set()
     for tag in tags:
         assert tag["venue_id"] == venue.id
         assert tag["is_active"] is True
         assert tag["status"] == "available"
         assert tag["wa_link"].startswith("https://wa.me/")
+        assert HEX6_PATTERN.match(tag["token"]), f"expected a 6-char hex token, got {tag['token']!r}"
+        # wa_link is URL-encoded, so check the raw token substring rather than "tag <token>" literally.
         assert tag["token"] in tag["wa_link"]
+        tokens.add(tag["token"])
+    assert len(tokens) == 3  # all unique
 
 
 async def test_repeated_generation_continues_numbering(client, db):

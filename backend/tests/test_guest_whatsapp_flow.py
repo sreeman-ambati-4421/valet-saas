@@ -48,9 +48,11 @@ async def _post_webhook(client, from_phone: str, body: str):
 async def test_qr_scan_creates_session_immediately(client, db):
     tenant = await make_tenant(db)
     venue = await make_venue(db, tenant)
-    qr = await make_qr_code(db, venue, label="Tag 1", token="test-token")
+    qr = await make_qr_code(db, venue, label="Tag 1")
 
-    resp, mock_send = await _post_webhook(client, GUEST_PHONE, f"QR:{qr.token}")
+    resp, mock_send = await _post_webhook(
+        client, GUEST_PHONE, f"👋 Hi {venue.name}! My car needs to be parked -- tag {qr.token}."
+    )
     assert resp.status_code == 200
     mock_send.assert_called_once()
     assert "We've got your request" in mock_send.call_args[0][1]
@@ -73,7 +75,9 @@ async def test_scan_of_in_use_tag_is_rejected(client, db):
     venue = await make_venue(db, tenant)
     qr = await make_qr_code(db, venue, status=TagStatus.IN_USE)
 
-    resp, mock_send = await _post_webhook(client, GUEST_PHONE, f"QR:{qr.token}")
+    resp, mock_send = await _post_webhook(
+        client, GUEST_PHONE, f"👋 Hi {venue.name}! My car needs to be parked -- tag {qr.token}."
+    )
 
     assert resp.status_code == 200
     mock_send.assert_called_once()
@@ -84,7 +88,9 @@ async def test_scan_of_in_use_tag_is_rejected(client, db):
 
 
 async def test_unknown_qr_token_no_session_created(client, db):
-    resp, mock_send = await _post_webhook(client, GUEST_PHONE, "QR:does-not-exist")
+    resp, mock_send = await _post_webhook(
+        client, GUEST_PHONE, "👋 Hi Some Venue! My car needs to be parked -- tag ABCDEF."
+    )
     assert resp.status_code == 200
     mock_send.assert_called_once()
     assert "isn't valid" in mock_send.call_args[0][1]
@@ -126,7 +132,7 @@ async def test_invalid_signature_returns_403(client, db):
     ) as mock_send:
         resp = await client.post(
             "/webhooks/twilio/whatsapp",
-            data={"From": f"whatsapp:{GUEST_PHONE}", "Body": "QR:whatever"},
+            data={"From": f"whatsapp:{GUEST_PHONE}", "Body": "👋 Hi Venue! My car needs to be parked -- tag ABCDEF."},
             headers={"X-Twilio-Signature": "bad"},
         )
     assert resp.status_code == 403
