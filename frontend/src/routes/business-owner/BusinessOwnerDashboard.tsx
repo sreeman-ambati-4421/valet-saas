@@ -210,7 +210,7 @@ export function BusinessOwnerDashboard() {
           />
           <input
             required
-            placeholder="WhatsApp number (+91...)"
+            placeholder="Phone number (+91...)"
             value={staffPhone}
             onChange={(e) => setStaffPhone(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"

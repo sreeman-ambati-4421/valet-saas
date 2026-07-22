@@ -121,7 +121,7 @@ export function SaasOwnerDashboard() {
           />
           <input
             required
-            placeholder="WhatsApp number (+91...)"
+            placeholder="Phone number (+91...)"
             value={ownerPhone}
             onChange={(e) => setOwnerPhone(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
