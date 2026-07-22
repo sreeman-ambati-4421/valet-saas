@@ -178,7 +178,10 @@ export function ValetDeskDashboard() {
         {active.map((s) => {
           const isMine = s.accepted_by_user_id === me.id
           const isUnaccepted = s.state === 'REQUESTED' && !s.accepted_by_user_id
-          const next = NEXT_ACTION[s.state]
+          // Retrieval on a guest-initiated (QR/WhatsApp) session can only come
+          // from the guest's own "car" message, never a manual staff button.
+          const waitingOnGuestWhatsapp = s.state === 'PARKED' && s.created_via_whatsapp
+          const next = waitingOnGuestWhatsapp ? undefined : NEXT_ACTION[s.state]
 
           return (
             <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4">
@@ -210,6 +213,10 @@ export function ValetDeskDashboard() {
                 >
                   {next.label}
                 </button>
+              )}
+
+              {!isUnaccepted && isMine && waitingOnGuestWhatsapp && (
+                <span className="text-sm text-gray-500">Waiting for guest to request retrieval via WhatsApp</span>
               )}
 
               {!isUnaccepted && !isMine && (

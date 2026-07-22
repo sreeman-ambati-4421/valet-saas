@@ -125,7 +125,17 @@ async def request_retrieval(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*STAFF_ROLES)),
 ) -> SessionOut:
+    """Manual fallback for guests without WhatsApp. Sessions the guest
+    themselves started over WhatsApp must have retrieval requested the same
+    way (the "car" keyword, handled in guest_conversation_service) -- staff
+    cannot request retrieval on their behalf for those."""
     session = await _load_session_with_access(session_id, current_user, db)
+    if session.created_via_whatsapp:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "This session was started by the guest over WhatsApp -- only the guest's own WhatsApp "
+            "message can request retrieval.",
+        )
     updated = await session_service.transition_session(
         db, session, SessionState.RETRIEVAL_REQUESTED, current_user, note="Guest requested retrieval (manual)"
     )

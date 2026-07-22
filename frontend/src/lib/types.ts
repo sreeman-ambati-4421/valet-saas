@@ -57,6 +57,7 @@ export interface ValetSession {
   guest_id: string
   vehicle_id: string
   accepted_by_user_id: string | null
+  created_via_whatsapp: boolean
   state: SessionState
   parking_zone_id: string | null
   parking_slot_id: string | null

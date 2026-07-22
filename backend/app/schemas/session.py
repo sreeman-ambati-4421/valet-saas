@@ -35,6 +35,7 @@ class SessionOut(BaseModel):
     guest_id: str
     vehicle_id: str
     accepted_by_user_id: str | None
+    created_via_whatsapp: bool
     state: SessionState
     parking_zone_id: str | None
     parking_slot_id: str | None

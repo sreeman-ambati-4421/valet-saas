@@ -72,7 +72,7 @@ async def _handle_reg_number_reply(db: AsyncSession, guest: Guest, reg_number: s
         return
 
     data = SessionCreate(registration_number=reg_number, guest_phone_number=guest.whatsapp_phone_number, guest_name=guest.name)
-    await session_service.create_session(db, venue.tenant_id, venue_id, None, data)
+    await session_service.create_session(db, venue.tenant_id, venue_id, None, data, created_via_whatsapp=True)
 
     guest.pending_venue_id = None
     await db.commit()

@@ -19,7 +19,7 @@ async def _make_qr(db, venue, token="test-token"):
     return qr
 
 
-async def _make_active_session(db, tenant, venue, guest_phone, state):
+async def _make_active_session(db, tenant, venue, guest_phone, state, created_via_whatsapp=False):
     guest = Guest(whatsapp_phone_number=guest_phone)
     db.add(guest)
     await db.flush()
@@ -32,6 +32,7 @@ async def _make_active_session(db, tenant, venue, guest_phone, state):
         guest_id=guest.id,
         vehicle_id=vehicle.id,
         state=state,
+        created_via_whatsapp=created_via_whatsapp,
     )
     db.add(session)
     await db.commit()
@@ -70,6 +71,7 @@ async def test_qr_scan_then_reg_number_creates_session(client, db):
     assert len(sessions) == 1
     assert sessions[0].state == SessionState.REQUESTED
     assert sessions[0].venue_id == venue.id
+    assert sessions[0].created_via_whatsapp is True
 
     guest_result = await db.execute(select(Guest))
     guest = guest_result.scalars().first()
@@ -124,6 +126,35 @@ async def test_invalid_signature_returns_403(client, db):
         )
     assert resp.status_code == 403
     mock_send.assert_not_called()
+
+
+async def test_staff_cannot_manually_request_retrieval_on_whatsapp_originated_session(client, db):
+    tenant = await make_tenant(db)
+    venue = await make_venue(db, tenant)
+    owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue])
+    session = await _make_active_session(
+        db, tenant, venue, GUEST_PHONE, state=SessionState.PARKED, created_via_whatsapp=True
+    )
+
+    resp = await client.post(f"/sessions/{session.id}/request-retrieval", headers=auth_header(owner))
+
+    assert resp.status_code == 403
+    await db.refresh(session)
+    assert session.state == SessionState.PARKED
+
+
+async def test_staff_can_manually_request_retrieval_on_staff_created_session(client, db):
+    tenant = await make_tenant(db)
+    venue = await make_venue(db, tenant)
+    owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue])
+    session = await _make_active_session(
+        db, tenant, venue, GUEST_PHONE, state=SessionState.PARKED, created_via_whatsapp=False
+    )
+
+    resp = await client.post(f"/sessions/{session.id}/request-retrieval", headers=auth_header(owner))
+
+    assert resp.status_code == 200
+    assert resp.json()["state"] == "RETRIEVAL_REQUESTED"
 
 
 async def test_staff_parking_session_sends_guest_whatsapp(client, db):

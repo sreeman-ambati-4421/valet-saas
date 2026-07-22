@@ -54,6 +54,13 @@ class ValetSession(Base, UUIDPk, TimestampMixin):
     parking_slot_id: Mapped[str | None] = mapped_column(ForeignKey("parking_slots.id"), nullable=True)
     key_tag: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    # True only for sessions created by the guest scanning a QR code and
+    # messaging WhatsApp directly. For these, retrieval can only be
+    # requested by the guest's own WhatsApp message (the "car" keyword) --
+    # never manually by staff. Staff-created sessions (for guests without
+    # WhatsApp) keep the manual request-retrieval fallback.
+    created_via_whatsapp: Mapped[bool] = mapped_column(default=False)
+
     events: Mapped[list["SessionEvent"]] = relationship(back_populates="session", order_by="SessionEvent.created_at")
 
 

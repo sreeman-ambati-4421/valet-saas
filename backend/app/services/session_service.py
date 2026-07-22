@@ -69,7 +69,12 @@ async def record_event(
 
 
 async def create_session(
-    db: AsyncSession, tenant_id: str, venue_id: str, actor: User | None, data: SessionCreate
+    db: AsyncSession,
+    tenant_id: str,
+    venue_id: str,
+    actor: User | None,
+    data: SessionCreate,
+    created_via_whatsapp: bool = False,
 ) -> ValetSession:
     guest = await get_or_create_guest(db, data.guest_phone_number, data.guest_name)
     vehicle = await get_or_create_vehicle(db, data.registration_number)
@@ -80,6 +85,7 @@ async def create_session(
         guest_id=guest.id,
         vehicle_id=vehicle.id,
         state=SessionState.REQUESTED,
+        created_via_whatsapp=created_via_whatsapp,
     )
     db.add(session)
     await db.flush()
