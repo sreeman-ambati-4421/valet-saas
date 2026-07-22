@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = "dev-only-insecure-secret-change-me"
     supabase_service_key: str = ""
 
+    # Signs our own short-lived accept-invite tokens (sent as a link over
+    # WhatsApp). Deliberately separate from supabase_jwt_secret -- these
+    # tokens serve a different purpose (one-time password-set, verified by
+    # our own backend) and must never be accepted anywhere a real Supabase
+    # session token is expected, or vice versa.
+    invite_token_secret: str = "dev-only-insecure-invite-secret-change-me"
+
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # Used to build the sign-in link mentioned in staff invite WhatsApp messages.

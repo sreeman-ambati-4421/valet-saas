@@ -28,9 +28,8 @@ async def test_business_owner_invites_venue_staff(client, db):
     assert body["role"] == "valet_desk"
     mock_send.assert_called_once()
     assert mock_send.call_args[0][0] == "+911111111111"
-    # No link at all -- just a plain notification to sign in with this number.
     sent_message = mock_send.call_args[0][1]
-    assert "/login" in sent_message
+    assert "/accept-invite?token=" in sent_message
 
     # confirm the created user actually has venue access and correct tenant
     me_resp = await client.get(f"/venues/{venue.id}", headers=auth_header(owner))

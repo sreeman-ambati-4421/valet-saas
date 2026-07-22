@@ -1,3 +1,5 @@
+import time
+
 import httpx
 from jose import JWTError, jwt
 
@@ -6,6 +8,39 @@ from app.core.config import settings
 
 class InvalidTokenError(Exception):
     pass
+
+
+INVITE_TOKEN_PURPOSE = "staff_invite_accept"
+INVITE_TOKEN_TTL_SECONDS = 7 * 24 * 3600
+
+
+def create_invite_token(user_id: str) -> str:
+    """Signs a short-lived token (our own secret, not Supabase's) identifying
+    a pending invited user. Embedded in the accept-invite link sent over
+    WhatsApp -- verified by verify_invite_token when they submit a password.
+    """
+    payload = {
+        "sub": user_id,
+        "purpose": INVITE_TOKEN_PURPOSE,
+        "exp": int(time.time()) + INVITE_TOKEN_TTL_SECONDS,
+    }
+    return jwt.encode(payload, settings.invite_token_secret, algorithm="HS256")
+
+
+def verify_invite_token(token: str) -> str:
+    """Returns the app-level user id encoded in a valid, unexpired invite token."""
+    try:
+        payload = jwt.decode(token, settings.invite_token_secret, algorithms=["HS256"])
+    except JWTError as exc:
+        raise InvalidTokenError(str(exc)) from exc
+
+    if payload.get("purpose") != INVITE_TOKEN_PURPOSE:
+        raise InvalidTokenError("Not an invite-accept token")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise InvalidTokenError("Token missing subject claim")
+    return user_id
 
 
 _jwks_cache: dict | None = None

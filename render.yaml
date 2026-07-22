@@ -17,6 +17,8 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
+      - key: INVITE_TOKEN_SECRET
+        sync: false
       - key: CORS_ORIGINS
         sync: false
       - key: FRONTEND_URL

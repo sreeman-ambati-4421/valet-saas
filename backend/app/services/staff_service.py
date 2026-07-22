@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import supabase_admin, twilio_client
 from app.core.config import settings
+from app.core.security import create_invite_token
 from app.core.supabase_admin import StaffInviteError
 from app.models.user import User, UserRole, UserVenueAccess
 
@@ -19,12 +20,14 @@ async def create_invited_user(
     tenant_id: str | None,
     venue_id: str | None = None,
 ) -> User:
-    """Grants a new staff member access, identified by their WhatsApp number.
+    """Grants a new staff member access, identified by their phone number.
 
-    Creates a phone-confirmed Supabase Auth account (no invite link/token --
-    they log in with a WhatsApp OTP sent straight to that number, so simply
-    receiving it proves ownership) and sends a plain WhatsApp notification
-    telling them to sign in.
+    Creates a phone-confirmed but password-less Supabase Auth account, and
+    sends a WhatsApp message containing a one-time accept-invite link. The
+    link carries our own signed token (not a Supabase one -- phone-identified
+    accounts have no Supabase "magic link" equivalent), so simply viewing it
+    does nothing; the password is only set, and the account only activated,
+    when the recipient submits it via the accept-invite form.
 
     tenant_id/venue_id must already be resolved by the caller from
     server-side context (the target venue/tenant), never taken directly
@@ -42,7 +45,10 @@ async def create_invited_user(
         phone_number=phone_number,
         full_name=full_name,
         role=role,
-        is_active=True,
+        # Stays inactive until they accept the invite and set a password --
+        # an unaccepted invite must not be indistinguishable from a real
+        # active staff member.
+        is_active=False,
     )
     db.add(user)
     try:
@@ -63,10 +69,12 @@ async def create_invited_user(
 
     await db.refresh(user)
 
+    invite_token = create_invite_token(user.id)
+    accept_url = f"{settings.frontend_url}/accept-invite?token={invite_token}"
     twilio_client.send_whatsapp_text(
         phone_number,
-        f"Hi {full_name}, you now have access to the Valet Parking platform. "
-        f"Sign in with this WhatsApp number at {settings.frontend_url}/login to get started.",
+        f"Hi {full_name}, you've been invited to the Valet Parking platform. "
+        f"Tap this link to set your password and get started: {accept_url}",
     )
 
     return user

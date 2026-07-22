@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleHome } from './auth/RoleHome'
 import { LoginPage } from './auth/LoginPage'
+import { AcceptInvite } from './auth/AcceptInvite'
 import { ValetDeskDashboard } from './routes/valet-desk/ValetDeskDashboard'
 import { BusinessOwnerDashboard } from './routes/business-owner/BusinessOwnerDashboard'
 import { SaasOwnerDashboard } from './routes/saas-owner/SaasOwnerDashboard'
@@ -13,6 +14,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/" element={<RoleHome />} />
           <Route
             path="/valet-desk"

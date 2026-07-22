@@ -9,7 +9,8 @@ if (!url || !anonKey) {
   )
 }
 
-// Sign-in is WhatsApp-OTP based (signInWithOtp + verifyOtp), entirely
-// within a single browser session -- no redirect links involved, so the
-// default PKCE flow needs no override.
+// Sign-in is plain phone+password (signInWithPassword) -- no redirect links
+// involved, so the default PKCE flow needs no override. The accept-invite
+// link itself doesn't touch this client at all; it's verified by our own
+// backend, not Supabase.
 export const supabase = createClient(url, anonKey)
