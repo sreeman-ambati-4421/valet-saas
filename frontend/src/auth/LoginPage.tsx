@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { PasswordInput } from '../components/PasswordInput'
 
 export function LoginPage() {
+  const navigate = useNavigate()
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -13,8 +15,13 @@ export function LoginPage() {
     setSubmitting(true)
     setError(null)
     const { error } = await supabase.auth.signInWithPassword({ phone, password })
-    if (error) setError(error.message)
+    if (error) {
+      setError(error.message)
+      setSubmitting(false)
+      return
+    }
     setSubmitting(false)
+    navigate('/', { replace: true })
   }
 
   return (

@@ -8,9 +8,9 @@ const ROLE_HOME: Record<string, string> = {
 }
 
 export function RoleHome() {
-  const { session, me, loading } = useAuth()
+  const { session, me, loading, meLoading } = useAuth()
 
-  if (loading) {
+  if (loading || meLoading) {
     return <div className="flex min-h-screen items-center justify-center text-gray-400">Loading…</div>
   }
   if (!session) return <Navigate to="/login" replace />

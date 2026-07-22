@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null
   me: Me | null
   loading: boolean
+  meLoading: boolean
   error: string | null
   signOut: () => Promise<void>
   refreshMe: () => Promise<void>
@@ -19,9 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
+  const [meLoading, setMeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function loadMe(accessToken: string) {
+    setMeLoading(true)
     try {
       const profile = await apiFetch<Me>('/me', accessToken)
       setMe(profile)
@@ -29,6 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setMe(null)
       setError(err instanceof Error ? err.message : 'Failed to load profile')
+    } finally {
+      setMeLoading(false)
     }
   }
 
@@ -68,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, me, loading, error, signOut, refreshMe }}>
+    <AuthContext.Provider value={{ session, me, loading, meLoading, error, signOut, refreshMe }}>
       {children}
     </AuthContext.Provider>
   )
