@@ -11,6 +11,6 @@ class QRCodeOut(BaseModel):
     token: str
     label: str | None
     is_active: bool
-    wa_link: str
+    wa_link: str = ""
 
     model_config = {"from_attributes": True}
