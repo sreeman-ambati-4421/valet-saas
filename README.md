@@ -14,7 +14,7 @@ Multi-tenant, WhatsApp-first valet parking management platform. Full business re
 - **Frontend** (`/frontend`): React + TypeScript + Vite, PWA-enabled, Tailwind CSS, deployed on Vercel. Serves the SaaS owner, business owner, and valet desk dashboards — all web-based.
 - **Backend** (`/backend`): Python FastAPI + SQLAlchemy (async) + Alembic. Hosted separately from the frontend (Render/Fly.io — TBD).
 - **Data/Auth/Realtime**: Supabase (managed Postgres + Auth + Realtime).
-- **WhatsApp**: Twilio (BSP), for guest conversations and staff invite notifications — the messaging layer is isolated so this can be swapped for direct Meta Cloud API later without touching core valet logic. Staff sign-in codes arrive by plain SMS (via Supabase's own Twilio phone-auth integration), not WhatsApp.
+- **WhatsApp**: Twilio (BSP), for guest conversations, staff invite notifications, and staff sign-in OTPs (via Supabase's Twilio Verify phone-auth integration) — the messaging layer is isolated so this can be swapped for direct Meta Cloud API later without touching core valet logic.
 
 ## Setup
 
@@ -22,7 +22,7 @@ Multi-tenant, WhatsApp-first valet parking management platform. Full business re
 
 Free tier at [supabase.com](https://supabase.com). From **Settings → API** grab the Project URL, anon key, and JWT secret; from **Settings → Database** grab the connection string.
 
-**Enable phone auth (required — there is no email/password login):** In **Authentication → Providers**, enable the **Phone** provider and set the SMS provider to **Twilio** (plain Twilio, not Twilio Verify) using the same Account SID/Auth Token as your Twilio setup below, plus a **Messaging Service SID** (Twilio Console → Messaging → Services → create one, or use a Twilio phone number capable of sending SMS). Login codes arrive as a normal SMS text — this is separate from the WhatsApp messaging used for guest conversations and staff invite notifications below, which keeps setup simple and doesn't require Twilio Verify's WhatsApp channel.
+**Enable phone auth (required — there is no email/password login):** In **Authentication → Providers**, enable the **Phone** provider and set the SMS provider to **Twilio Verify** (not plain Twilio — plain Twilio only sends SMS, and this project delivers login codes over WhatsApp). You'll need a Twilio Verify Service (Twilio Console → Verify → Services — separate from the WhatsApp Sender used for guest/invite messaging) with its **WhatsApp channel enabled**. Fill in the Account SID, Auth Token, and that Verify Service SID (`VA...`) in Supabase. During WhatsApp Sandbox testing, each recipient number must first send the sandbox "join" code once before it can receive OTPs (same requirement as invite notifications).
 
 ### 2. Backend
 
@@ -53,13 +53,13 @@ npm run dev
 
 ### 4. Create your first user
 
-There's no self-serve signup. Login is SMS-OTP based (phone number → code texted to it → verified in-browser, no password). To bootstrap your first `saas_owner` (every other account is created through the app's own invite flow after that):
+There's no self-serve signup. Login is WhatsApp-OTP based (phone number → code sent via WhatsApp → verified in-browser, no password). To bootstrap your first `saas_owner` (every other account is created through the app's own invite flow after that):
 
-1. In Supabase Auth (dashboard or `supabase.auth.admin.createUser`), create a user with `phone` set to your number and `phone_confirm: true`.
+1. In Supabase Auth (dashboard or `supabase.auth.admin.createUser`), create a user with `phone` set to your WhatsApp number and `phone_confirm: true`.
 2. Insert a matching row in the `users` table with the same `supabase_user_id`, that `phone_number`, `role = 'saas_owner'`, `tenant_id = NULL`, `is_active = true`.
 3. Sign in at `/login` with that phone number.
 
-From there, a `saas_owner` invites `business_owner`s, who invite `valet_desk` staff — both flows create a phone-confirmed Supabase account and send a WhatsApp notification (no link to click) telling the recipient to sign in with their number; the login code itself then arrives by SMS.
+From there, a `saas_owner` invites `business_owner`s, who invite `valet_desk` staff — both flows create a phone-confirmed Supabase account and just send a WhatsApp notification (no link to click) telling the recipient to sign in with their number.
 
 ## Repo layout
 

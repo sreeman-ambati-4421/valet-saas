@@ -19,13 +19,12 @@ async def create_invited_user(
     tenant_id: str | None,
     venue_id: str | None = None,
 ) -> User:
-    """Grants a new staff member access, identified by their phone number.
+    """Grants a new staff member access, identified by their WhatsApp number.
 
     Creates a phone-confirmed Supabase Auth account (no invite link/token --
-    they log in with an SMS OTP sent straight to that number, so simply
-    receiving it proves ownership) and sends a WhatsApp notification (the
-    invite notification itself; login codes arrive by SMS) telling them to
-    sign in.
+    they log in with a WhatsApp OTP sent straight to that number, so simply
+    receiving it proves ownership) and sends a plain WhatsApp notification
+    telling them to sign in.
 
     tenant_id/venue_id must already be resolved by the caller from
     server-side context (the target venue/tenant), never taken directly
@@ -67,7 +66,7 @@ async def create_invited_user(
     twilio_client.send_whatsapp_text(
         phone_number,
         f"Hi {full_name}, you now have access to the Valet Parking platform. "
-        f"Sign in with this phone number at {settings.frontend_url}/login to get started.",
+        f"Sign in with this WhatsApp number at {settings.frontend_url}/login to get started.",
     )
 
     return user

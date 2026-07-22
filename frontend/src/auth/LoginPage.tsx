@@ -36,14 +36,14 @@ export function LoginPage() {
         <h1 className="text-xl font-semibold text-gray-100">Valet Parking — Sign in</h1>
         <p className="text-sm text-gray-400">
           {step === 'phone'
-            ? "We'll text you a one-time code."
-            : `Enter the code texted to ${phone}.`}
+            ? "We'll send a one-time code to this number on WhatsApp."
+            : `Enter the code sent to ${phone} on WhatsApp.`}
         </p>
 
         {step === 'phone' ? (
           <form onSubmit={sendCode} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm text-gray-400">Phone number</label>
+              <label className="text-sm text-gray-400">WhatsApp number</label>
               <input
                 type="tel"
                 required
