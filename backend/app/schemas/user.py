@@ -12,7 +12,7 @@ class VenueSummary(BaseModel):
 
 class MeOut(BaseModel):
     id: str
-    email: str
+    phone_number: str
     full_name: str
     role: UserRole
     tenant_id: str | None

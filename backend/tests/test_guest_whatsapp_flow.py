@@ -129,23 +129,22 @@ async def test_invalid_signature_returns_403(client, db):
 async def test_staff_parking_session_sends_guest_whatsapp(client, db):
     tenant = await make_tenant(db)
     venue = await make_venue(db, tenant)
-    manager = await make_user(db, UserRole.VENUE_MANAGER, tenant=tenant, venues=[venue])
-    valet = await make_user(db, UserRole.VALET, tenant=tenant, venues=[venue])
+    owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue])
+    desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue])
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
         json={"registration_number": "XY1234", "guest_phone_number": GUEST_PHONE},
-        headers=auth_header(manager),
+        headers=auth_header(owner),
     )
     sid = create_resp.json()["id"]
-    await client.post(f"/sessions/{sid}/accept", headers=auth_header(valet))
-    await client.post(f"/sessions/{sid}/collected", headers=auth_header(valet))
+    await client.post(f"/sessions/{sid}/accept", headers=auth_header(desk))
 
     with patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
         park_resp = await client.post(
             f"/sessions/{sid}/park",
             json={"key_tag": "K-1", "parking_zone_id": None, "parking_slot_id": None},
-            headers=auth_header(valet),
+            headers=auth_header(desk),
         )
 
     assert park_resp.status_code == 200

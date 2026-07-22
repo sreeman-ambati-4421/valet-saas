@@ -9,28 +9,28 @@ from app.models.base import TimestampMixin, UUIDPk
 
 class SessionState(str, enum.Enum):
     REQUESTED = "REQUESTED"
-    ASSIGNED = "ASSIGNED"
-    VEHICLE_COLLECTED = "VEHICLE_COLLECTED"
+    ACCEPTED = "ACCEPTED"
     PARKED = "PARKED"
     RETRIEVAL_REQUESTED = "RETRIEVAL_REQUESTED"
     RETRIEVING = "RETRIEVING"
     READY = "READY"
-    DELIVERED = "DELIVERED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
 
 # Explicit allowed transitions — the state machine's single source of truth.
 # Enforced in the session service layer, not just documented here.
+#
+# There is no separate driver login: a valet_desk person accepts the guest's
+# WhatsApp request, verbally dispatches a driver, and reports outcomes back
+# (dispatch is never itself a tracked state -- only its before/after are).
 ALLOWED_TRANSITIONS: dict[SessionState, set[SessionState]] = {
-    SessionState.REQUESTED: {SessionState.ASSIGNED, SessionState.CANCELLED},
-    SessionState.ASSIGNED: {SessionState.VEHICLE_COLLECTED, SessionState.CANCELLED},
-    SessionState.VEHICLE_COLLECTED: {SessionState.PARKED, SessionState.CANCELLED},
+    SessionState.REQUESTED: {SessionState.ACCEPTED, SessionState.CANCELLED},
+    SessionState.ACCEPTED: {SessionState.PARKED, SessionState.CANCELLED},
     SessionState.PARKED: {SessionState.RETRIEVAL_REQUESTED, SessionState.CANCELLED},
     SessionState.RETRIEVAL_REQUESTED: {SessionState.RETRIEVING, SessionState.CANCELLED},
     SessionState.RETRIEVING: {SessionState.READY, SessionState.CANCELLED},
-    SessionState.READY: {SessionState.DELIVERED},
-    SessionState.DELIVERED: {SessionState.COMPLETED},
+    SessionState.READY: {SessionState.COMPLETED},
     SessionState.COMPLETED: set(),
     SessionState.CANCELLED: set(),
 }
@@ -45,7 +45,7 @@ class ValetSession(Base, UUIDPk, TimestampMixin):
     vehicle_id: Mapped[str] = mapped_column(ForeignKey("vehicles.id"), index=True)
     qr_code_id: Mapped[str | None] = mapped_column(ForeignKey("qr_codes.id"), nullable=True)
 
-    assigned_valet_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    accepted_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     state: Mapped[SessionState] = mapped_column(
         Enum(SessionState, native_enum=False, length=32), default=SessionState.REQUESTED, index=True
     )

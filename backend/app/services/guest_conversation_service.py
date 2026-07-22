@@ -11,7 +11,7 @@ from app.services import session_service
 
 RETRIEVAL_KEYWORDS = {"car", "retrieve", "pickup", "pick up"}
 
-TERMINAL_STATES = {SessionState.DELIVERED, SessionState.COMPLETED, SessionState.CANCELLED}
+TERMINAL_STATES = {SessionState.COMPLETED, SessionState.CANCELLED}
 
 
 async def _get_active_session(db: AsyncSession, guest_id: str) -> ValetSession | None:

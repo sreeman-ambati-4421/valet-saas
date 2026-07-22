@@ -7,15 +7,14 @@ import type { ValetSession } from '../../lib/types'
 const POLL_MS = 4000
 
 const NEXT_ACTION: Partial<Record<ValetSession['state'], { label: string; path: string }>> = {
-  ASSIGNED: { label: 'Mark Collected', path: 'collected' },
-  VEHICLE_COLLECTED: { label: 'Park Vehicle', path: 'park' },
+  ACCEPTED: { label: 'Mark Parked', path: 'park' },
   PARKED: { label: 'Request Retrieval', path: 'request-retrieval' },
-  RETRIEVAL_REQUESTED: { label: 'Start Retrieving', path: 'retrieve' },
+  RETRIEVAL_REQUESTED: { label: 'Mark Retrieving', path: 'retrieving' },
   RETRIEVING: { label: 'Mark Ready', path: 'ready' },
-  READY: { label: 'Deliver', path: 'deliver' },
+  READY: { label: 'Complete', path: 'complete' },
 }
 
-export function ValetDashboard() {
+export function ValetDeskDashboard() {
   const { session, me } = useAuth()
   const accessToken = session?.access_token ?? null
   const [venueId, setVenueId] = useState<string | null>(me?.venues[0]?.id ?? null)
@@ -49,8 +48,8 @@ export function ValetDashboard() {
 
   if (me.venues.length === 0) {
     return (
-      <Layout title="Valet">
-        <p className="text-gray-400">You are not assigned to any venue yet. Ask your manager to grant venue access.</p>
+      <Layout title="Valet Desk">
+        <p className="text-gray-400">You are not assigned to any venue yet. Ask your business owner to grant venue access.</p>
       </Layout>
     )
   }
@@ -108,11 +107,11 @@ export function ValetDashboard() {
     }
   }
 
-  const active = sessions.filter((s) => !['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(s.state))
-  const finished = sessions.filter((s) => ['DELIVERED', 'COMPLETED'].includes(s.state))
+  const active = sessions.filter((s) => !['COMPLETED', 'CANCELLED'].includes(s.state))
+  const finished = sessions.filter((s) => s.state === 'COMPLETED')
 
   return (
-    <Layout title="Valet Queue">
+    <Layout title="Valet Desk Queue">
       {me.venues.length > 1 && (
         <select
           value={venueId ?? ''}
@@ -177,8 +176,8 @@ export function ValetDashboard() {
       <div className="space-y-2">
         {active.length === 0 && <p className="text-gray-500">No active sessions.</p>}
         {active.map((s) => {
-          const isMine = s.assigned_valet_id === me.id
-          const isUnassigned = s.state === 'REQUESTED' && !s.assigned_valet_id
+          const isMine = s.accepted_by_user_id === me.id
+          const isUnaccepted = s.state === 'REQUESTED' && !s.accepted_by_user_id
           const next = NEXT_ACTION[s.state]
 
           return (
@@ -191,7 +190,7 @@ export function ValetDashboard() {
                 </p>
               </div>
 
-              {isUnassigned && (
+              {isUnaccepted && (
                 <button
                   disabled={busyId === s.id}
                   onClick={() => void runAction(s, 'accept')}
@@ -201,7 +200,7 @@ export function ValetDashboard() {
                 </button>
               )}
 
-              {!isUnassigned && isMine && next && (
+              {!isUnaccepted && isMine && next && (
                 <button
                   disabled={busyId === s.id}
                   onClick={() =>
@@ -213,8 +212,8 @@ export function ValetDashboard() {
                 </button>
               )}
 
-              {!isUnassigned && !isMine && (
-                <span className="text-sm text-gray-500">Assigned to another valet</span>
+              {!isUnaccepted && !isMine && (
+                <span className="text-sm text-gray-500">Accepted by another desk session</span>
               )}
             </div>
           )

@@ -32,7 +32,7 @@ alter table venues enable row level security;
 
 create policy venues_platform_admin_all on venues
   for all
-  using (app_current_user_role() = 'platform_super_admin');
+  using (app_current_user_role() = 'saas_owner');
 
 create policy venues_tenant_isolation on venues
   for all
@@ -43,7 +43,7 @@ alter table users enable row level security;
 
 create policy users_platform_admin_all on users
   for all
-  using (app_current_user_role() = 'platform_super_admin');
+  using (app_current_user_role() = 'saas_owner');
 
 create policy users_tenant_isolation on users
   for select
@@ -58,7 +58,7 @@ alter table valet_sessions enable row level security;
 
 create policy sessions_platform_admin_all on valet_sessions
   for all
-  using (app_current_user_role() = 'platform_super_admin');
+  using (app_current_user_role() = 'saas_owner');
 
 create policy sessions_tenant_isolation on valet_sessions
   for all
@@ -69,7 +69,7 @@ alter table session_events enable row level security;
 
 create policy session_events_platform_admin_all on session_events
   for all
-  using (app_current_user_role() = 'platform_super_admin');
+  using (app_current_user_role() = 'saas_owner');
 
 create policy session_events_tenant_isolation on session_events
   for select

@@ -13,8 +13,8 @@ from app.services import session_service
 
 router = APIRouter(tags=["sessions"])
 
-STAFF_ROLES = (UserRole.VENUE_MANAGER, UserRole.VALET, UserRole.TENANT_ADMIN, UserRole.PLATFORM_SUPER_ADMIN)
-ADMIN_OVERRIDE_ROLES = (UserRole.TENANT_ADMIN, UserRole.PLATFORM_SUPER_ADMIN)
+STAFF_ROLES = (UserRole.VALET_DESK, UserRole.BUSINESS_OWNER, UserRole.SAAS_OWNER)
+ADMIN_OVERRIDE_ROLES = (UserRole.BUSINESS_OWNER, UserRole.SAAS_OWNER)
 
 
 async def _enrich(db: AsyncSession, session: ValetSession) -> SessionOut:
@@ -35,9 +35,9 @@ async def _load_session_with_access(session_id: str, current_user: User, db: Asy
 def _require_actor_is_assigned_or_admin(session: ValetSession, current_user: User) -> None:
     if current_user.role in ADMIN_OVERRIDE_ROLES:
         return
-    if current_user.role == UserRole.VALET and session.assigned_valet_id == current_user.id:
+    if current_user.role == UserRole.VALET_DESK and session.accepted_by_user_id == current_user.id:
         return
-    raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the assigned valet (or a tenant admin) may do this")
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the desk person who accepted this job (or a business owner) may do this")
 
 
 @router.post("/venues/{venue_id}/sessions", response_model=SessionOut, status_code=201)
@@ -96,23 +96,11 @@ async def get_session(
 async def accept_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.VALET)),
+    current_user: User = Depends(require_role(UserRole.VALET_DESK)),
 ) -> SessionOut:
     session = await session_service.get_session_or_404(db, session_id)
     await require_venue_access(session.venue_id, current_user, db)
     updated = await session_service.accept_session(db, session_id, current_user)
-    return await _enrich(db, updated)
-
-
-@router.post("/sessions/{session_id}/collected", response_model=SessionOut)
-async def mark_collected(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> SessionOut:
-    session = await _load_session_with_access(session_id, current_user, db)
-    _require_actor_is_assigned_or_admin(session, current_user)
-    updated = await session_service.transition_session(db, session, SessionState.VEHICLE_COLLECTED, current_user)
     return await _enrich(db, updated)
 
 
@@ -144,12 +132,13 @@ async def request_retrieval(
     return await _enrich(db, updated)
 
 
-@router.post("/sessions/{session_id}/retrieve", response_model=SessionOut)
-async def start_retrieving(
+@router.post("/sessions/{session_id}/retrieving", response_model=SessionOut)
+async def mark_retrieving(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SessionOut:
+    """Desk person has verbally dispatched a driver -- tells the guest to expect the car shortly."""
     session = await _load_session_with_access(session_id, current_user, db)
     _require_actor_is_assigned_or_admin(session, current_user)
     updated = await session_service.transition_session(db, session, SessionState.RETRIEVING, current_user)
@@ -168,13 +157,13 @@ async def mark_ready(
     return await _enrich(db, updated)
 
 
-@router.post("/sessions/{session_id}/deliver", response_model=SessionOut)
-async def deliver_vehicle(
+@router.post("/sessions/{session_id}/complete", response_model=SessionOut)
+async def complete_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SessionOut:
     session = await _load_session_with_access(session_id, current_user, db)
     _require_actor_is_assigned_or_admin(session, current_user)
-    updated = await session_service.transition_session(db, session, SessionState.DELIVERED, current_user)
+    updated = await session_service.transition_session(db, session, SessionState.COMPLETED, current_user)
     return await _enrich(db, updated)

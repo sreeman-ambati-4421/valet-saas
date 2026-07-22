@@ -2,10 +2,9 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
 const ROLE_HOME: Record<string, string> = {
-  platform_super_admin: '/platform-admin',
-  tenant_admin: '/tenant-admin',
-  venue_manager: '/manager',
-  valet: '/valet',
+  saas_owner: '/saas-owner',
+  business_owner: '/business-owner',
+  valet_desk: '/valet-desk',
 }
 
 export function RoleHome() {

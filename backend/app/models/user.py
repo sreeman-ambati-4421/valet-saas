@@ -8,10 +8,9 @@ from app.models.base import TimestampMixin, UUIDPk
 
 
 class UserRole(str, enum.Enum):
-    PLATFORM_SUPER_ADMIN = "platform_super_admin"
-    TENANT_ADMIN = "tenant_admin"
-    VENUE_MANAGER = "venue_manager"
-    VALET = "valet"
+    SAAS_OWNER = "saas_owner"
+    BUSINESS_OWNER = "business_owner"
+    VALET_DESK = "valet_desk"
 
 
 class User(Base, UUIDPk, TimestampMixin):
@@ -21,15 +20,17 @@ class User(Base, UUIDPk, TimestampMixin):
     # since Supabase Auth lives in a separate schema managed by Supabase itself.
     supabase_user_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
 
-    # Null only for platform_super_admin, who is not scoped to any single tenant.
+    # Null only for saas_owner, who is not scoped to any single tenant.
     tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
 
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # The WhatsApp number this user logs in with -- also Supabase Auth's
+    # phone identity for this account (E.164, e.g. "+919999999999").
+    phone_number: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
-    # values_callable persists the lowercase .value ("platform_super_admin")
-    # rather than SQLAlchemy's default of the uppercase member .name
-    # ("PLATFORM_SUPER_ADMIN") -- keeps the DB representation consistent with
-    # what the API/frontend use everywhere else.
+    # values_callable persists the lowercase .value ("saas_owner") rather than
+    # SQLAlchemy's default of the uppercase member .name ("SAAS_OWNER") --
+    # keeps the DB representation consistent with what the API/frontend use
+    # everywhere else.
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, native_enum=False, length=32, values_callable=lambda obj: [e.value for e in obj])
     )

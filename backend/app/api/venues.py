@@ -15,7 +15,7 @@ router = APIRouter(prefix="/venues", tags=["venues"])
 async def create_venue(
     payload: VenueCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.TENANT_ADMIN)),
+    current_user: User = Depends(require_role(UserRole.BUSINESS_OWNER)),
 ) -> Venue:
     # tenant_id is always the caller's own tenant -- VenueCreate has no tenant_id
     # field at all, so there is nothing in the request body that could override it.

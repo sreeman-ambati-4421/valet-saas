@@ -7,19 +7,19 @@ from tests.conftest import auth_header, make_tenant, make_user, make_venue
 async def _setup(db):
     tenant = await make_tenant(db)
     venue = await make_venue(db, tenant)
-    manager = await make_user(db, UserRole.VENUE_MANAGER, tenant=tenant, venues=[venue])
-    valet = await make_user(db, UserRole.VALET, tenant=tenant, venues=[venue])
-    other_valet = await make_user(db, UserRole.VALET, tenant=tenant, venues=[venue])
-    return tenant, venue, manager, valet, other_valet
+    owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue])
+    desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue])
+    other_desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue])
+    return tenant, venue, owner, desk, other_desk
 
 
 async def test_full_session_walkthrough_and_audit_trail(client, db):
-    tenant, venue, manager, valet, _ = await _setup(db)
+    tenant, venue, owner, desk, _ = await _setup(db)
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
         json={"registration_number": " ka01 ab 1234 ", "guest_phone_number": "+919999999999", "guest_name": "Sree"},
-        headers=auth_header(manager),
+        headers=auth_header(owner),
     )
     assert create_resp.status_code == 201
     session = create_resp.json()
@@ -27,89 +27,91 @@ async def test_full_session_walkthrough_and_audit_trail(client, db):
     assert session["registration_number"] == "KA01AB1234"  # normalized
     sid = session["id"]
 
-    accept_resp = await client.post(f"/sessions/{sid}/accept", headers=auth_header(valet))
+    accept_resp = await client.post(f"/sessions/{sid}/accept", headers=auth_header(desk))
     assert accept_resp.status_code == 200
-    assert accept_resp.json()["state"] == "ASSIGNED"
-    assert accept_resp.json()["assigned_valet_id"] == valet.id
+    assert accept_resp.json()["state"] == "ACCEPTED"
+    assert accept_resp.json()["accepted_by_user_id"] == desk.id
 
     steps = [
-        ("collected", None, "VEHICLE_COLLECTED"),
         ("park", {"key_tag": "K-42", "parking_zone_id": None, "parking_slot_id": None}, "PARKED"),
         ("request-retrieval", None, "RETRIEVAL_REQUESTED"),
-        ("retrieve", None, "RETRIEVING"),
+        ("retrieving", None, "RETRIEVING"),
         ("ready", None, "READY"),
-        ("deliver", None, "DELIVERED"),
+        ("complete", None, "COMPLETED"),
     ]
     for path, body, expected_state in steps:
         if body is not None:
-            resp = await client.post(f"/sessions/{sid}/{path}", json=body, headers=auth_header(valet))
+            resp = await client.post(f"/sessions/{sid}/{path}", json=body, headers=auth_header(desk))
         else:
-            resp = await client.post(f"/sessions/{sid}/{path}", headers=auth_header(valet))
+            resp = await client.post(f"/sessions/{sid}/{path}", headers=auth_header(desk))
         assert resp.status_code == 200, f"{path} failed: {resp.text}"
         assert resp.json()["state"] == expected_state
 
-    detail_resp = await client.get(f"/sessions/{sid}", headers=auth_header(manager))
+    detail_resp = await client.get(f"/sessions/{sid}", headers=auth_header(owner))
     assert detail_resp.status_code == 200
     events = detail_resp.json()["events"]
-    # created + 7 transitions = 8 events
-    assert len(events) == 8
+    # created + 6 transitions = 7 events
+    assert len(events) == 7
     assert [e["to_state"] for e in events] == [
         "REQUESTED",
-        "ASSIGNED",
-        "VEHICLE_COLLECTED",
+        "ACCEPTED",
         "PARKED",
         "RETRIEVAL_REQUESTED",
         "RETRIEVING",
         "READY",
-        "DELIVERED",
+        "COMPLETED",
     ]
 
 
 async def test_out_of_order_transition_is_rejected(client, db):
-    tenant, venue, manager, valet, _ = await _setup(db)
+    tenant, venue, owner, desk, _ = await _setup(db)
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
         json={"registration_number": "XY1234", "guest_phone_number": "+911111111111"},
-        headers=auth_header(manager),
+        headers=auth_header(owner),
     )
     sid = create_resp.json()["id"]
 
-    # Still REQUESTED -- cannot jump straight to deliver.
-    resp = await client.post(f"/sessions/{sid}/deliver", headers=auth_header(valet))
+    # Still REQUESTED -- cannot jump straight to ready.
+    resp = await client.post(f"/sessions/{sid}/ready", headers=auth_header(desk))
 
-    assert resp.status_code == 403  # not the assigned valet yet (nobody is)
+    assert resp.status_code == 403  # not the desk person who accepted it yet (nobody has)
 
 
-async def test_unassigned_valet_cannot_progress_someone_elses_job(client, db):
-    tenant, venue, manager, valet, other_valet = await _setup(db)
+async def test_unaccepted_desk_person_cannot_progress_someone_elses_job(client, db):
+    tenant, venue, owner, desk, other_desk = await _setup(db)
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
         json={"registration_number": "XY1234", "guest_phone_number": "+911111111111"},
-        headers=auth_header(manager),
+        headers=auth_header(owner),
     )
     sid = create_resp.json()["id"]
-    await client.post(f"/sessions/{sid}/accept", headers=auth_header(valet))
+    await client.post(f"/sessions/{sid}/accept", headers=auth_header(desk))
 
-    resp = await client.post(f"/sessions/{sid}/collected", headers=auth_header(other_valet))
+    resp = await client.post(
+        f"/sessions/{sid}/park",
+        json={"key_tag": "K-1", "parking_zone_id": None, "parking_slot_id": None},
+        headers=auth_header(other_desk),
+    )
 
     assert resp.status_code == 403
 
 
-async def test_concurrent_accept_only_one_valet_wins(client, db):
-    tenant, venue, manager, valet, other_valet = await _setup(db)
+async def test_concurrent_accept_only_one_desk_person_wins(client, db):
+    tenant, venue, owner, desk, other_desk = await _setup(db)
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
         json={"registration_number": "XY1234", "guest_phone_number": "+911111111111"},
-        headers=auth_header(manager),
+        headers=auth_header(owner),
     )
     sid = create_resp.json()["id"]
 
     results = await asyncio.gather(
-        client.post(f"/sessions/{sid}/accept", headers=auth_header(valet)),
-        client.post(f"/sessions/{sid}/accept", headers=auth_header(other_valet)),
+        client.post(f"/sessions/{sid}/accept", headers=auth_header(desk)),
+        client.post(f"/sessions/{sid}/accept", headers=auth_header(other_desk)),
     )
 
     statuses = sorted(r.status_code for r in results)

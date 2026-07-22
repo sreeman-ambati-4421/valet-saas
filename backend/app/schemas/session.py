@@ -34,7 +34,7 @@ class SessionOut(BaseModel):
     venue_id: str
     guest_id: str
     vehicle_id: str
-    assigned_valet_id: str | None
+    accepted_by_user_id: str | None
     state: SessionState
     parking_zone_id: str | None
     parking_slot_id: str | None

@@ -3,21 +3,19 @@ from pydantic import BaseModel
 from app.models.user import UserRole
 
 
-class InviteTenantAdmin(BaseModel):
-    email: str
+class InviteBusinessOwner(BaseModel):
+    phone_number: str  # WhatsApp number they'll log in with
     full_name: str
-    phone_number: str  # WhatsApp number the invite link is sent to
 
 
 class InviteVenueStaff(BaseModel):
-    email: str
-    full_name: str
+    # No role field: valet_desk is the only invitable venue-level role.
     phone_number: str
-    role: UserRole  # validated further in the router to exclude admin roles
+    full_name: str
 
 
 class InviteOut(BaseModel):
     user_id: str
-    email: str
+    phone_number: str
     role: UserRole
     message: str

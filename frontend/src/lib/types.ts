@@ -1,14 +1,12 @@
-export type UserRole = 'platform_super_admin' | 'tenant_admin' | 'venue_manager' | 'valet'
+export type UserRole = 'saas_owner' | 'business_owner' | 'valet_desk'
 
 export type SessionState =
   | 'REQUESTED'
-  | 'ASSIGNED'
-  | 'VEHICLE_COLLECTED'
+  | 'ACCEPTED'
   | 'PARKED'
   | 'RETRIEVAL_REQUESTED'
   | 'RETRIEVING'
   | 'READY'
-  | 'DELIVERED'
   | 'COMPLETED'
   | 'CANCELLED'
 
@@ -45,7 +43,7 @@ export interface QRCode {
 
 export interface Me {
   id: string
-  email: string
+  phone_number: string
   full_name: string
   role: UserRole
   tenant_id: string | null
@@ -58,7 +56,7 @@ export interface ValetSession {
   venue_id: string
   guest_id: string
   vehicle_id: string
-  assigned_valet_id: string | null
+  accepted_by_user_id: string | null
   state: SessionState
   parking_zone_id: string | null
   parking_slot_id: string | null

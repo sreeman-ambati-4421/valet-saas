@@ -1,10 +1,23 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { Layout } from '../../components/Layout'
 import { apiFetch, ApiError, API_URL } from '../../lib/api'
-import type { QRCode } from '../../lib/types'
+import type { QRCode, SessionState, ValetSession } from '../../lib/types'
 
-export function TenantAdminDashboard() {
+const POLL_MS = 5000
+
+const ALL_STATES: SessionState[] = [
+  'REQUESTED',
+  'ACCEPTED',
+  'PARKED',
+  'RETRIEVAL_REQUESTED',
+  'RETRIEVING',
+  'READY',
+  'COMPLETED',
+  'CANCELLED',
+]
+
+export function BusinessOwnerDashboard() {
   const { session, me, refreshMe } = useAuth()
   const accessToken = session?.access_token ?? null
 
@@ -17,14 +30,41 @@ export function TenantAdminDashboard() {
   const [qrError, setQrError] = useState<string | null>(null)
   const [qrLoadingVenueId, setQrLoadingVenueId] = useState<string | null>(null)
 
-  const [staffEmail, setStaffEmail] = useState('')
   const [staffName, setStaffName] = useState('')
   const [staffPhone, setStaffPhone] = useState('')
-  const [staffRole, setStaffRole] = useState<'venue_manager' | 'valet'>('valet')
   const [staffVenueId, setStaffVenueId] = useState(me?.venues[0]?.id ?? '')
   const [staffError, setStaffError] = useState<string | null>(null)
   const [staffMessage, setStaffMessage] = useState<string | null>(null)
   const [staffSubmitting, setStaffSubmitting] = useState(false)
+
+  const [overviewVenueId, setOverviewVenueId] = useState<string | null>(me?.venues[0]?.id ?? null)
+  const [sessions, setSessions] = useState<ValetSession[]>([])
+  const [stateFilter, setStateFilter] = useState<SessionState | ''>('')
+  const [regFilter, setRegFilter] = useState('')
+  const [overviewError, setOverviewError] = useState<string | null>(null)
+
+  const loadSessions = useCallback(async () => {
+    if (!overviewVenueId || !accessToken) return
+    const params = new URLSearchParams()
+    if (stateFilter) params.set('state', stateFilter)
+    if (regFilter) params.set('registration_number', regFilter)
+    try {
+      const data = await apiFetch<ValetSession[]>(
+        `/venues/${overviewVenueId}/sessions?${params.toString()}`,
+        accessToken
+      )
+      setSessions(data)
+      setOverviewError(null)
+    } catch (err) {
+      setOverviewError(err instanceof ApiError ? err.message : 'Failed to load sessions')
+    }
+  }, [overviewVenueId, accessToken, stateFilter, regFilter])
+
+  useEffect(() => {
+    void loadSessions()
+    const interval = setInterval(() => void loadSessions(), POLL_MS)
+    return () => clearInterval(interval)
+  }, [loadSessions])
 
   async function createVenue(e: FormEvent) {
     e.preventDefault()
@@ -65,7 +105,7 @@ export function TenantAdminDashboard() {
 
   async function inviteStaff(e: FormEvent) {
     e.preventDefault()
-    if (!accessToken || !staffEmail.trim() || !staffPhone.trim() || !staffVenueId) return
+    if (!accessToken || !staffPhone.trim() || !staffVenueId) return
     setStaffSubmitting(true)
     setStaffError(null)
     setStaffMessage(null)
@@ -73,14 +113,11 @@ export function TenantAdminDashboard() {
       const result = await apiFetch<{ message: string }>(`/venues/${staffVenueId}/staff`, accessToken, {
         method: 'POST',
         body: JSON.stringify({
-          email: staffEmail.trim(),
           full_name: staffName.trim(),
           phone_number: staffPhone.trim(),
-          role: staffRole,
         }),
       })
       setStaffMessage(result.message)
-      setStaffEmail('')
       setStaffName('')
       setStaffPhone('')
     } catch (err) {
@@ -91,7 +128,7 @@ export function TenantAdminDashboard() {
   }
 
   return (
-    <Layout title="Tenant Admin">
+    <Layout title="Business Owner">
       <h2 className="mb-2 text-sm font-medium text-gray-400">Venues</h2>
       <form onSubmit={createVenue} className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
         <input
@@ -158,20 +195,12 @@ export function TenantAdminDashboard() {
         })}
       </div>
 
-      <h2 className="mb-2 text-sm font-medium text-gray-400">Invite Staff</h2>
+      <h2 className="mb-2 text-sm font-medium text-gray-400">Invite Valet Desk Staff</h2>
       {!me || me.venues.length === 0 ? (
         <p className="text-gray-500">Create a venue first before inviting staff.</p>
       ) : (
         <>
         <form onSubmit={inviteStaff} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
-          <input
-            required
-            type="email"
-            placeholder="Email"
-            value={staffEmail}
-            onChange={(e) => setStaffEmail(e.target.value)}
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-          />
           <input
             required
             placeholder="Full name"
@@ -187,17 +216,9 @@ export function TenantAdminDashboard() {
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           />
           <select
-            value={staffRole}
-            onChange={(e) => setStaffRole(e.target.value as 'venue_manager' | 'valet')}
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-          >
-            <option value="valet">Valet</option>
-            <option value="venue_manager">Venue Manager</option>
-          </select>
-          <select
             value={staffVenueId}
             onChange={(e) => setStaffVenueId(e.target.value)}
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm sm:col-span-2"
           >
             {me.venues.map((v) => (
               <option key={v.id} value={v.id}>
@@ -214,13 +235,88 @@ export function TenantAdminDashboard() {
           </button>
         </form>
         <p className="mt-2 text-xs text-gray-500">
-          The invite link is sent via WhatsApp (sandbox), not email — the recipient's phone must have joined the
-          Twilio Sandbox first.
+          They'll get a WhatsApp message (sandbox) telling them to sign in with this number — the recipient's
+          phone must have joined the Twilio Sandbox first.
         </p>
         </>
       )}
       {staffError && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{staffError}</p>}
       {staffMessage && <p className="mt-4 rounded-md bg-emerald-950 px-3 py-2 text-sm text-emerald-300">{staffMessage}</p>}
+
+      <h2 className="mt-10 mb-2 text-sm font-medium text-gray-400">Session Overview</h2>
+      {(!me || me.venues.length === 0) ? (
+        <p className="text-gray-500">No venues assigned yet.</p>
+      ) : (
+        <>
+          <div className="mb-4 flex flex-wrap gap-3">
+            {me.venues.length > 1 && (
+              <select
+                value={overviewVenueId ?? ''}
+                onChange={(e) => setOverviewVenueId(e.target.value)}
+                className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+              >
+                {me.venues.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value as SessionState | '')}
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+            >
+              <option value="">All states</option>
+              {ALL_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <input
+              placeholder="Search reg. number"
+              value={regFilter}
+              onChange={(e) => setRegFilter(e.target.value)}
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+            />
+          </div>
+
+          {overviewError && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{overviewError}</p>}
+
+          <div className="overflow-x-auto rounded-lg border border-gray-800">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-900 text-gray-400">
+                <tr>
+                  <th className="px-4 py-2">Reg. Number</th>
+                  <th className="px-4 py-2">Guest Phone</th>
+                  <th className="px-4 py-2">State</th>
+                  <th className="px-4 py-2">Key Tag</th>
+                  <th className="px-4 py-2">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s) => (
+                  <tr key={s.id} className="border-t border-gray-800">
+                    <td className="px-4 py-2 font-medium">{s.registration_number}</td>
+                    <td className="px-4 py-2 text-gray-400">{s.guest_phone_number}</td>
+                    <td className="px-4 py-2 uppercase tracking-wide text-gray-300">{s.state.replace('_', ' ')}</td>
+                    <td className="px-4 py-2 text-gray-400">{s.key_tag ?? '—'}</td>
+                    <td className="px-4 py-2 text-gray-500">{new Date(s.updated_at).toLocaleTimeString()}</td>
+                  </tr>
+                ))}
+                {sessions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                      No sessions match this filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </Layout>
   )
 }

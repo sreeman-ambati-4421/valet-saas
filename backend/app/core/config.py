@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:5173"]
 
-    # Used to build the redirect link in staff invite emails.
+    # Used to build the sign-in link mentioned in staff invite WhatsApp messages.
     frontend_url: str = "http://localhost:5173"
 
     # Twilio WhatsApp integration. Sandbox number by default -- no business

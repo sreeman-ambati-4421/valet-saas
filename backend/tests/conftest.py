@@ -52,7 +52,7 @@ async def client():
 
 def make_token(user: User) -> str:
     return jwt.encode(
-        {"sub": user.supabase_user_id, "aud": "authenticated", "email": user.email},
+        {"sub": user.supabase_user_id, "aud": "authenticated", "phone": user.phone_number},
         settings.supabase_jwt_secret,
         algorithm="HS256",
     )
@@ -67,13 +67,13 @@ async def make_user(
     role: UserRole,
     tenant: Tenant | None = None,
     venues: list[Venue] | None = None,
-    email: str | None = None,
+    phone_number: str | None = None,
     is_active: bool = True,
 ) -> User:
     user = User(
         supabase_user_id=str(uuid.uuid4()),
         tenant_id=tenant.id if tenant else None,
-        email=email or f"{uuid.uuid4()}@example.com",
+        phone_number=phone_number or f"+91{uuid.uuid4().int % 10**10:010d}",
         full_name="Test User",
         role=role,
         is_active=is_active,

@@ -3,12 +3,9 @@ import { AuthProvider } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleHome } from './auth/RoleHome'
 import { LoginPage } from './auth/LoginPage'
-import { AcceptInvite } from './auth/AcceptInvite'
-import { InviteRedirect } from './auth/InviteRedirect'
-import { ValetDashboard } from './routes/valet/ValetDashboard'
-import { ManagerDashboard } from './routes/manager/ManagerDashboard'
-import { TenantAdminDashboard } from './routes/tenant-admin/TenantAdminDashboard'
-import { PlatformAdminDashboard } from './routes/platform-admin/PlatformAdminDashboard'
+import { ValetDeskDashboard } from './routes/valet-desk/ValetDeskDashboard'
+import { BusinessOwnerDashboard } from './routes/business-owner/BusinessOwnerDashboard'
+import { SaasOwnerDashboard } from './routes/saas-owner/SaasOwnerDashboard'
 
 function App() {
   return (
@@ -16,38 +13,28 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route path="/invite-redirect" element={<InviteRedirect />} />
           <Route path="/" element={<RoleHome />} />
           <Route
-            path="/valet"
+            path="/valet-desk"
             element={
-              <ProtectedRoute allowedRoles={['valet']}>
-                <ValetDashboard />
+              <ProtectedRoute allowedRoles={['valet_desk']}>
+                <ValetDeskDashboard />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/manager"
+            path="/business-owner"
             element={
-              <ProtectedRoute allowedRoles={['venue_manager', 'tenant_admin']}>
-                <ManagerDashboard />
+              <ProtectedRoute allowedRoles={['business_owner']}>
+                <BusinessOwnerDashboard />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/tenant-admin"
+            path="/saas-owner"
             element={
-              <ProtectedRoute allowedRoles={['tenant_admin']}>
-                <TenantAdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/platform-admin"
-            element={
-              <ProtectedRoute allowedRoles={['platform_super_admin']}>
-                <PlatformAdminDashboard />
+              <ProtectedRoute allowedRoles={['saas_owner']}>
+                <SaasOwnerDashboard />
               </ProtectedRoute>
             }
           />

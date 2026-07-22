@@ -15,7 +15,7 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
 async def create_tenant(
     payload: TenantCreate,
     db: AsyncSession = Depends(get_db),
-    _admin=Depends(require_role(UserRole.PLATFORM_SUPER_ADMIN)),
+    _admin=Depends(require_role(UserRole.SAAS_OWNER)),
 ) -> Tenant:
     tenant = Tenant(name=payload.name)
     db.add(tenant)
@@ -27,7 +27,7 @@ async def create_tenant(
 @router.get("", response_model=list[TenantOut])
 async def list_tenants(
     db: AsyncSession = Depends(get_db),
-    _admin=Depends(require_role(UserRole.PLATFORM_SUPER_ADMIN)),
+    _admin=Depends(require_role(UserRole.SAAS_OWNER)),
 ) -> list[Tenant]:
     result = await db.execute(select(Tenant))
     return list(result.scalars().all())

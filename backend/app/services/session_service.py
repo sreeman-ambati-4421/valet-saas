@@ -10,8 +10,8 @@ from app.schemas.session import ParkInput, SessionCreate
 
 GUEST_STATUS_MESSAGES = {
     SessionState.PARKED: "Your vehicle has been parked safely. Reply 'car' anytime you're ready to have it brought back.",
-    SessionState.READY: "Your car is ready for pickup at the valet stand!",
-    SessionState.DELIVERED: "Thanks for visiting! Hope you have a great day ahead.",
+    SessionState.RETRIEVING: "Your vehicle is being retrieved.",
+    SessionState.READY: "Your car is ready for pickup!",
 }
 
 
@@ -97,17 +97,17 @@ async def get_session_or_404(db: AsyncSession, session_id: str) -> ValetSession:
     return session
 
 
-async def accept_session(db: AsyncSession, session_id: str, valet: User) -> ValetSession:
+async def accept_session(db: AsyncSession, session_id: str, desk_user: User) -> ValetSession:
     """Atomic conditional accept: only succeeds if the session is still REQUESTED
-    and unassigned, so two valets accepting at once can't both win (BRD FR-07)."""
+    and unaccepted, so two desk-person taps at once can't both win (BRD FR-07)."""
     result = await db.execute(
         update(ValetSession)
         .where(
             ValetSession.id == session_id,
             ValetSession.state == SessionState.REQUESTED,
-            ValetSession.assigned_valet_id.is_(None),
+            ValetSession.accepted_by_user_id.is_(None),
         )
-        .values(assigned_valet_id=valet.id, state=SessionState.ASSIGNED)
+        .values(accepted_by_user_id=desk_user.id, state=SessionState.ACCEPTED)
         .returning(ValetSession)
     )
     session = result.scalar_one_or_none()
@@ -116,7 +116,7 @@ async def accept_session(db: AsyncSession, session_id: str, valet: User) -> Vale
         await get_session_or_404(db, session_id)
         raise HTTPException(status.HTTP_409_CONFLICT, "Session already accepted or not awaiting acceptance")
 
-    await record_event(db, session, SessionState.REQUESTED, SessionState.ASSIGNED, valet, note="Job accepted")
+    await record_event(db, session, SessionState.REQUESTED, SessionState.ACCEPTED, desk_user, note="Job accepted")
     await db.commit()
     await db.refresh(session)
     return session

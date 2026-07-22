@@ -44,16 +44,6 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_allow_inactive(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """Same as get_current_user but does not require is_active -- only for
-    the self-confirm endpoint an invited-but-not-yet-activated user hits
-    right after setting their password."""
-    return await _resolve_user_from_token(credentials, db)
-
-
 def require_role(*allowed_roles: UserRole):
     async def _check(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:
@@ -79,7 +69,7 @@ async def require_venue_access(venue_id: str, current_user: User, db: AsyncSessi
     if venue is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Venue not found")
 
-    if current_user.role == UserRole.PLATFORM_SUPER_ADMIN:
+    if current_user.role == UserRole.SAAS_OWNER:
         return
 
     if venue.tenant_id != current_user.tenant_id:
@@ -87,7 +77,7 @@ async def require_venue_access(venue_id: str, current_user: User, db: AsyncSessi
         # exists in another tenant at all.
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Venue not found")
 
-    if current_user.role == UserRole.TENANT_ADMIN:
+    if current_user.role == UserRole.BUSINESS_OWNER:
         return
 
     access = await db.execute(

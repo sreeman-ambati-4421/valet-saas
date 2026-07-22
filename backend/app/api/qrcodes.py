@@ -34,7 +34,7 @@ async def create_qr_code(
     venue_id: str,
     payload: QRCodeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.TENANT_ADMIN, UserRole.VENUE_MANAGER, UserRole.PLATFORM_SUPER_ADMIN)),
+    current_user: User = Depends(require_role(UserRole.BUSINESS_OWNER, UserRole.SAAS_OWNER)),
 ) -> QRCodeOut:
     await require_venue_access(venue_id, current_user, db)
 

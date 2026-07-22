@@ -4,7 +4,7 @@ import { Layout } from '../../components/Layout'
 import { apiFetch, ApiError } from '../../lib/api'
 import type { Tenant } from '../../lib/types'
 
-export function PlatformAdminDashboard() {
+export function SaasOwnerDashboard() {
   const { session } = useAuth()
   const accessToken = session?.access_token ?? null
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -13,20 +13,19 @@ export function PlatformAdminDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [adminEmail, setAdminEmail] = useState('')
-  const [adminName, setAdminName] = useState('')
-  const [adminPhone, setAdminPhone] = useState('')
-  const [adminTenantId, setAdminTenantId] = useState('')
-  const [adminError, setAdminError] = useState<string | null>(null)
-  const [adminMessage, setAdminMessage] = useState<string | null>(null)
-  const [adminSubmitting, setAdminSubmitting] = useState(false)
+  const [ownerName, setOwnerName] = useState('')
+  const [ownerPhone, setOwnerPhone] = useState('')
+  const [ownerTenantId, setOwnerTenantId] = useState('')
+  const [ownerError, setOwnerError] = useState<string | null>(null)
+  const [ownerMessage, setOwnerMessage] = useState<string | null>(null)
+  const [ownerSubmitting, setOwnerSubmitting] = useState(false)
 
   const load = useCallback(async () => {
     if (!accessToken) return
     try {
       const data = await apiFetch<Tenant[]>('/tenants', accessToken)
       setTenants(data)
-      setAdminTenantId((current) => current || data[0]?.id || '')
+      setOwnerTenantId((current) => current || data[0]?.id || '')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load tenants')
     }
@@ -55,30 +54,29 @@ export function PlatformAdminDashboard() {
     }
   }
 
-  async function inviteTenantAdmin(e: FormEvent) {
+  async function inviteBusinessOwner(e: FormEvent) {
     e.preventDefault()
-    if (!accessToken || !adminEmail.trim() || !adminPhone.trim() || !adminTenantId) return
-    setAdminSubmitting(true)
-    setAdminError(null)
-    setAdminMessage(null)
+    if (!accessToken || !ownerPhone.trim() || !ownerTenantId) return
+    setOwnerSubmitting(true)
+    setOwnerError(null)
+    setOwnerMessage(null)
     try {
-      const result = await apiFetch<{ message: string }>(`/tenants/${adminTenantId}/admins`, accessToken, {
+      const result = await apiFetch<{ message: string }>(`/tenants/${ownerTenantId}/admins`, accessToken, {
         method: 'POST',
-        body: JSON.stringify({ email: adminEmail.trim(), full_name: adminName.trim(), phone_number: adminPhone.trim() }),
+        body: JSON.stringify({ full_name: ownerName.trim(), phone_number: ownerPhone.trim() }),
       })
-      setAdminMessage(result.message)
-      setAdminEmail('')
-      setAdminName('')
-      setAdminPhone('')
+      setOwnerMessage(result.message)
+      setOwnerName('')
+      setOwnerPhone('')
     } catch (err) {
-      setAdminError(err instanceof ApiError ? err.message : 'Failed to send invite')
+      setOwnerError(err instanceof ApiError ? err.message : 'Failed to send invite')
     } finally {
-      setAdminSubmitting(false)
+      setOwnerSubmitting(false)
     }
   }
 
   return (
-    <Layout title="Platform Admin">
+    <Layout title="SaaS Owner">
       <h2 className="mb-2 text-sm font-medium text-gray-400">Tenants</h2>
       <form onSubmit={createTenant} className="mb-4 flex gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
         <input
@@ -108,37 +106,29 @@ export function PlatformAdminDashboard() {
         ))}
       </div>
 
-      <h2 className="mb-2 text-sm font-medium text-gray-400">Invite Tenant Admin</h2>
+      <h2 className="mb-2 text-sm font-medium text-gray-400">Invite Business Owner</h2>
       {tenants.length === 0 ? (
-        <p className="text-gray-500">Create a tenant first before inviting its admin.</p>
+        <p className="text-gray-500">Create a tenant first before inviting its business owner.</p>
       ) : (
         <>
-        <form onSubmit={inviteTenantAdmin} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
-          <input
-            required
-            type="email"
-            placeholder="Email"
-            value={adminEmail}
-            onChange={(e) => setAdminEmail(e.target.value)}
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-          />
+        <form onSubmit={inviteBusinessOwner} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
           <input
             required
             placeholder="Full name"
-            value={adminName}
-            onChange={(e) => setAdminName(e.target.value)}
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           />
           <input
             required
             placeholder="WhatsApp number (+91...)"
-            value={adminPhone}
-            onChange={(e) => setAdminPhone(e.target.value)}
+            value={ownerPhone}
+            onChange={(e) => setOwnerPhone(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           />
           <select
-            value={adminTenantId}
-            onChange={(e) => setAdminTenantId(e.target.value)}
+            value={ownerTenantId}
+            onChange={(e) => setOwnerTenantId(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
           >
             {tenants.map((t) => (
@@ -149,23 +139,23 @@ export function PlatformAdminDashboard() {
           </select>
           <button
             type="submit"
-            disabled={adminSubmitting}
+            disabled={ownerSubmitting}
             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
           >
             Send Invite
           </button>
         </form>
         <p className="mt-2 text-xs text-gray-500">
-          The invite link is sent via WhatsApp (sandbox), not email — the recipient's phone must have joined the
-          Twilio Sandbox first.
+          They'll get a WhatsApp message (sandbox) telling them to sign in with this number — the recipient's
+          phone must have joined the Twilio Sandbox first.
         </p>
         </>
       )}
-      {adminError && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{adminError}</p>}
-      {adminMessage && <p className="mt-4 rounded-md bg-emerald-950 px-3 py-2 text-sm text-emerald-300">{adminMessage}</p>}
+      {ownerError && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{ownerError}</p>}
+      {ownerMessage && <p className="mt-4 rounded-md bg-emerald-950 px-3 py-2 text-sm text-emerald-300">{ownerMessage}</p>}
 
       <p className="mt-8 text-sm text-gray-500">
-        Full tenant management (subscriptions, health monitoring) is coming later. This is just enough to
+        Full platform administration (subscriptions, health monitoring) is coming later. This is just enough to
         bootstrap a pilot tenant end to end.
       </p>
     </Layout>
