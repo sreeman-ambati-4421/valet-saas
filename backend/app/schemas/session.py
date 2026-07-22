@@ -15,8 +15,6 @@ class SessionCreate(BaseModel):
 
 
 class ParkInput(BaseModel):
-    parking_zone_id: str | None = None
-    parking_slot_id: str | None = None
     registration_number: str
 
 
@@ -41,8 +39,6 @@ class SessionOut(BaseModel):
     accepted_by_user_id: str | None
     created_via_whatsapp: bool
     state: SessionState
-    parking_zone_id: str | None
-    parking_slot_id: str | None
     created_at: datetime
     updated_at: datetime
     registration_number: str | None = None

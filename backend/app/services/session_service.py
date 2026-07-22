@@ -218,8 +218,6 @@ async def transition_session(
     if park_input is not None:
         vehicle = await get_or_create_vehicle(db, park_input.registration_number)
         session.vehicle_id = vehicle.id
-        session.parking_zone_id = park_input.parking_zone_id
-        session.parking_slot_id = park_input.parking_slot_id
 
     session.state = to_state
     await record_event(db, session, from_state, to_state, actor, note=note)

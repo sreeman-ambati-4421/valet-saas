@@ -56,9 +56,6 @@ class ValetSession(Base, UUIDPk, TimestampMixin):
         Enum(SessionState, native_enum=False, length=32), default=SessionState.REQUESTED, index=True
     )
 
-    parking_zone_id: Mapped[str | None] = mapped_column(ForeignKey("parking_zones.id"), nullable=True)
-    parking_slot_id: Mapped[str | None] = mapped_column(ForeignKey("parking_slots.id"), nullable=True)
-
     # True only for sessions created by the guest scanning a QR code and
     # messaging WhatsApp directly. For these, retrieval can only be
     # requested by the guest's own WhatsApp message (the "car" keyword) --

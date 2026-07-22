@@ -1,9 +1,8 @@
-from app.models.parking import ParkingSlot, ParkingZone, QRCode
+from app.models.parking import QRCode, TagStatus
 from app.models.session import SessionEvent, SessionState, ValetSession
 from app.models.tenant import Tenant, Venue
 from app.models.user import User, UserRole, UserVenueAccess
 from app.models.vehicle_guest import Guest, Vehicle
-from app.models.whatsapp import Subscription, WhatsAppAccount
 
 __all__ = [
     "Tenant",
@@ -13,12 +12,9 @@ __all__ = [
     "UserVenueAccess",
     "Guest",
     "Vehicle",
-    "ParkingZone",
-    "ParkingSlot",
     "QRCode",
+    "TagStatus",
     "ValetSession",
     "SessionState",
     "SessionEvent",
-    "WhatsAppAccount",
-    "Subscription",
 ]

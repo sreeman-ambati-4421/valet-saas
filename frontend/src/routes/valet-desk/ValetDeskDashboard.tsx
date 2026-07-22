@@ -92,7 +92,7 @@ export function ValetDeskDashboard() {
     try {
       await apiFetch(`/sessions/${parkingSession.id}/park`, accessToken, {
         method: 'POST',
-        body: JSON.stringify({ registration_number: parkReg, parking_zone_id: null, parking_slot_id: null }),
+        body: JSON.stringify({ registration_number: parkReg }),
       })
       setParkingSession(null)
       setParkReg('')

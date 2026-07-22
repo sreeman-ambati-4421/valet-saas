@@ -19,6 +19,3 @@ class Vehicle(Base, UUIDPk, TimestampMixin):
 
     # Normalized (uppercased, whitespace-stripped) registration number.
     registration_number: Mapped[str] = mapped_column(String(32), index=True)
-    make: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    model: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    color: Mapped[str | None] = mapped_column(String(32), nullable=True)

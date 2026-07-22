@@ -35,7 +35,7 @@ async def test_full_session_walkthrough_and_audit_trail(client, db):
     assert accept_resp.json()["accepted_by_user_id"] == desk.id
 
     steps = [
-        ("park", {"registration_number": " ka01 ab 1234 ", "parking_zone_id": None, "parking_slot_id": None}, "PARKED"),
+        ("park", {"registration_number": " ka01 ab 1234 "}, "PARKED"),
         ("request-retrieval", None, "RETRIEVAL_REQUESTED"),
         ("retrieving", None, "RETRIEVING"),
         ("ready", None, "READY"),
@@ -100,7 +100,7 @@ async def test_unaccepted_desk_person_cannot_progress_someone_elses_job(client, 
 
     resp = await client.post(
         f"/sessions/{sid}/park",
-        json={"registration_number": "XY1234", "parking_zone_id": None, "parking_slot_id": None},
+        json={"registration_number": "XY1234"},
         headers=auth_header(other_desk),
     )
 

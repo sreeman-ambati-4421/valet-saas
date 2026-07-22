@@ -180,7 +180,7 @@ async def test_staff_parking_session_sends_guest_whatsapp(client, db):
     with patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
         park_resp = await client.post(
             f"/sessions/{sid}/park",
-            json={"registration_number": "XY1234", "parking_zone_id": None, "parking_slot_id": None},
+            json={"registration_number": "XY1234"},
             headers=auth_header(desk),
         )
 
