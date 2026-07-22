@@ -1,8 +1,9 @@
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import twilio_client
-from app.models.parking import QRCode
+from app.models.parking import QRCode, TagStatus
 from app.models.session import SessionState, ValetSession
 from app.models.tenant import Venue
 from app.models.vehicle_guest import Guest
@@ -33,10 +34,6 @@ async def handle_inbound_message(db: AsyncSession, from_phone: str, body: str) -
     await db.commit()
     await db.refresh(guest)
 
-    if guest.pending_venue_id:
-        await _handle_reg_number_reply(db, guest, text)
-        return
-
     if text.upper().startswith("QR:"):
         await _handle_qr_scan(db, guest, text[3:].strip())
         return
@@ -48,39 +45,33 @@ async def _handle_qr_scan(db: AsyncSession, guest: Guest, token: str) -> None:
     result = await db.execute(select(QRCode).where(QRCode.token == token, QRCode.is_active.is_(True)))
     qr = result.scalar_one_or_none()
     if qr is None:
-        _reply(guest.whatsapp_phone_number, "Sorry, this QR code isn't valid. Please ask a staff member for help.")
+        _reply(guest.whatsapp_phone_number, "Sorry, this tag isn't valid. Please ask a staff member for help.")
+        return
+
+    if qr.status != TagStatus.AVAILABLE:
+        _reply(
+            guest.whatsapp_phone_number,
+            "Sorry, this tag is currently in use. Please ask a staff member for help.",
+        )
         return
 
     venue = await db.get(Venue, qr.venue_id)
-    guest.pending_venue_id = qr.venue_id
-    await db.commit()
-
-    _reply(
-        guest.whatsapp_phone_number,
-        f"Welcome to {venue.name if venue else 'our valet service'}! Please reply with your vehicle's "
-        "registration number to start.",
-    )
-
-
-async def _handle_reg_number_reply(db: AsyncSession, guest: Guest, reg_number: str) -> None:
-    venue_id = guest.pending_venue_id
-    venue = await db.get(Venue, venue_id)
-    if venue is None or not reg_number:
-        _reply(guest.whatsapp_phone_number, "Something went wrong -- please scan the QR code again.")
-        guest.pending_venue_id = None
-        await db.commit()
+    data = SessionCreate(guest_phone_number=guest.whatsapp_phone_number, guest_name=guest.name, qr_code_id=qr.id)
+    try:
+        await session_service.create_session(db, venue.tenant_id, venue.id, None, data, created_via_whatsapp=True)
+    except HTTPException:
+        # Lost a race against someone else claiming the same tag in the
+        # instant between our availability check and actually claiming it.
+        _reply(
+            guest.whatsapp_phone_number,
+            "Sorry, that tag was just claimed by someone else. Please ask a staff member for help.",
+        )
         return
 
-    data = SessionCreate(registration_number=reg_number, guest_phone_number=guest.whatsapp_phone_number, guest_name=guest.name)
-    await session_service.create_session(db, venue.tenant_id, venue_id, None, data, created_via_whatsapp=True)
-
-    guest.pending_venue_id = None
-    await db.commit()
-
     _reply(
         guest.whatsapp_phone_number,
-        f"Got it -- {session_service.normalize_registration(reg_number)}. We'll text you updates. "
-        "Reply 'car' anytime you're ready to have it brought back.",
+        f"Welcome to {venue.name if venue else 'our valet service'}! We've got your request -- a valet will "
+        "be with you shortly. Reply 'car' anytime you're ready to have it brought back.",
     )
 
 
@@ -88,7 +79,7 @@ async def _handle_general_message(db: AsyncSession, guest: Guest, text: str) -> 
     session = await _get_active_session(db, guest.id)
 
     if session is None:
-        _reply(guest.whatsapp_phone_number, "Scan the QR code at the venue to start a valet request.")
+        _reply(guest.whatsapp_phone_number, "Scan the tag at the venue to start a valet request.")
         return
 
     if text.lower() in RETRIEVAL_KEYWORDS and session.state == SessionState.PARKED:

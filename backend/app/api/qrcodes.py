@@ -4,13 +4,13 @@ import urllib.parse
 
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import get_db
 from app.deps import get_current_user, require_role, require_venue_access
-from app.models.parking import QRCode
+from app.models.parking import QRCode, TagStatus
 from app.models.user import User, UserRole
 from app.schemas.qrcode import QRCodeCreate, QRCodeOut
 
@@ -29,31 +29,44 @@ def _to_out(qr: QRCode) -> QRCodeOut:
     return out
 
 
-@router.post("/venues/{venue_id}/qr-codes", response_model=QRCodeOut, status_code=201)
-async def create_qr_code(
+@router.post("/venues/{venue_id}/qr-codes", response_model=list[QRCodeOut], status_code=201)
+async def create_qr_codes(
     venue_id: str,
     payload: QRCodeCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.BUSINESS_OWNER, UserRole.SAAS_OWNER)),
-) -> QRCodeOut:
+) -> list[QRCodeOut]:
+    """Bulk-generates `count` physical key tags for a venue -- printed with
+    their QR + label, attached to vehicle keys one at a time as guests
+    arrive. Existing tag count for the venue determines where numbering
+    continues from, so repeated calls keep sequential labels."""
     await require_venue_access(venue_id, current_user, db)
 
-    token = secrets.token_urlsafe(16)
-    qr = QRCode(venue_id=venue_id, token=token, label=payload.label)
-    db.add(qr)
+    existing_count = await db.scalar(select(func.count()).select_from(QRCode).where(QRCode.venue_id == venue_id))
+    new_tags = []
+    for i in range(1, payload.count + 1):
+        token = secrets.token_urlsafe(16)
+        qr = QRCode(venue_id=venue_id, token=token, label=f"Tag {existing_count + i}")
+        db.add(qr)
+        new_tags.append(qr)
     await db.commit()
-    await db.refresh(qr)
-    return _to_out(qr)
+    for qr in new_tags:
+        await db.refresh(qr)
+    return [_to_out(qr) for qr in new_tags]
 
 
 @router.get("/venues/{venue_id}/qr-codes", response_model=list[QRCodeOut])
 async def list_qr_codes(
     venue_id: str,
+    status_filter: TagStatus | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[QRCodeOut]:
     await require_venue_access(venue_id, current_user, db)
-    result = await db.execute(select(QRCode).where(QRCode.venue_id == venue_id))
+    query = select(QRCode).where(QRCode.venue_id == venue_id, QRCode.is_active.is_(True))
+    if status_filter is not None:
+        query = query.where(QRCode.status == status_filter)
+    result = await db.execute(query.order_by(QRCode.label))
     return [_to_out(qr) for qr in result.scalars().all()]
 
 

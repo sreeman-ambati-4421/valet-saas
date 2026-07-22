@@ -1,5 +1,5 @@
 from app.models.user import UserRole
-from tests.conftest import auth_header, make_tenant, make_user, make_venue
+from tests.conftest import auth_header, make_qr_code, make_tenant, make_user, make_venue
 
 
 async def test_business_owner_cannot_read_other_tenants_venue(client, db):
@@ -39,7 +39,7 @@ async def test_business_owner_cannot_act_on_other_tenants_venue_sessions(client,
 
     resp = await client.post(
         f"/venues/{venue_b.id}/sessions",
-        json={"registration_number": "KA01AB1234", "guest_phone_number": "+919999999999"},
+        json={"guest_phone_number": "+919999999999"},
         headers=auth_header(owner_a),
     )
 
@@ -64,10 +64,11 @@ async def test_session_created_at_tenant_a_is_invisible_to_tenant_b_owner(client
     venue_a = await make_venue(db, tenant_a, "Venue A")
     owner_a = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant_a, venues=[venue_a])
     owner_b = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant_b)
+    await make_qr_code(db, venue_a)
 
     create_resp = await client.post(
         f"/venues/{venue_a.id}/sessions",
-        json={"registration_number": "KA01AB1234", "guest_phone_number": "+919999999999"},
+        json={"guest_phone_number": "+919999999999"},
         headers=auth_header(owner_a),
     )
     assert create_resp.status_code == 201

@@ -3,10 +3,13 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import twilio_client
+from app.models.parking import QRCode, TagStatus
 from app.models.session import ALLOWED_TRANSITIONS, SessionEvent, SessionState, ValetSession
 from app.models.user import User, UserRole, UserVenueAccess
 from app.models.vehicle_guest import Guest, Vehicle
 from app.schemas.session import ParkInput, SessionCreate
+
+TAG_NOT_AVAILABLE_DETAIL = "That tag is not available."
 
 GUEST_STATUS_MESSAGES = {
     SessionState.PARKED: "Your vehicle has been parked safely. Reply 'car' anytime you're ready to have it brought back.",
@@ -36,8 +39,8 @@ def short_code(session_id: str) -> str:
 
 
 async def _notify_desk_staff_of_new_request(db: AsyncSession, session: ValetSession) -> None:
-    vehicle = await db.get(Vehicle, session.vehicle_id)
-    reg = vehicle.registration_number if vehicle else "a vehicle"
+    tag = await db.get(QRCode, session.qr_code_id) if session.qr_code_id else None
+    tag_label = tag.label if tag else "a vehicle"
     result = await db.execute(
         select(User)
         .join(UserVenueAccess, UserVenueAccess.user_id == User.id)
@@ -50,7 +53,7 @@ async def _notify_desk_staff_of_new_request(db: AsyncSession, session: ValetSess
     for desk_user in result.scalars().all():
         twilio_client.send_whatsapp_text(
             desk_user.phone_number,
-            f"New request: {reg}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
+            f"New request: {tag_label}. Reply ACCEPT-{short_code(session.id)} to claim it, or open the app.",
         )
 
 
@@ -94,6 +97,44 @@ async def record_event(
     )
 
 
+async def _claim_tag(db: AsyncSession, venue_id: str, qr_code_id: str | None) -> QRCode:
+    """Atomically marks a tag IN_USE so two simultaneous claims (a guest
+    scan racing a staff-created request, or two staff creating sessions at
+    once) can't both attach to the same physical tag.
+
+    If qr_code_id is given (a guest scanned a specific tag), only that one
+    is considered. Otherwise (staff-created session, no scan happened) any
+    available tag for the venue is auto-assigned.
+    """
+    if qr_code_id is not None:
+        result = await db.execute(
+            update(QRCode)
+            .where(QRCode.id == qr_code_id, QRCode.status == TagStatus.AVAILABLE, QRCode.is_active.is_(True))
+            .values(status=TagStatus.IN_USE)
+            .returning(QRCode)
+        )
+    else:
+        candidate = await db.execute(
+            select(QRCode.id)
+            .where(QRCode.venue_id == venue_id, QRCode.status == TagStatus.AVAILABLE, QRCode.is_active.is_(True))
+            .limit(1)
+        )
+        candidate_id = candidate.scalar_one_or_none()
+        if candidate_id is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "No available tags for this venue.")
+        result = await db.execute(
+            update(QRCode)
+            .where(QRCode.id == candidate_id, QRCode.status == TagStatus.AVAILABLE)
+            .values(status=TagStatus.IN_USE)
+            .returning(QRCode)
+        )
+
+    tag = result.scalar_one_or_none()
+    if tag is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, TAG_NOT_AVAILABLE_DETAIL)
+    return tag
+
+
 async def create_session(
     db: AsyncSession,
     tenant_id: str,
@@ -103,13 +144,14 @@ async def create_session(
     created_via_whatsapp: bool = False,
 ) -> ValetSession:
     guest = await get_or_create_guest(db, data.guest_phone_number, data.guest_name)
-    vehicle = await get_or_create_vehicle(db, data.registration_number)
+    tag = await _claim_tag(db, venue_id, data.qr_code_id)
 
     session = ValetSession(
         tenant_id=tenant_id,
         venue_id=venue_id,
         guest_id=guest.id,
-        vehicle_id=vehicle.id,
+        vehicle_id=None,
+        qr_code_id=tag.id,
         state=SessionState.REQUESTED,
         created_via_whatsapp=created_via_whatsapp,
     )
@@ -155,6 +197,9 @@ async def accept_session(db: AsyncSession, session_id: str, desk_user: User) -> 
     return session
 
 
+TAG_RELEASED_ON_STATES = {SessionState.COMPLETED, SessionState.CANCELLED}
+
+
 async def transition_session(
     db: AsyncSession,
     session: ValetSession,
@@ -171,12 +216,17 @@ async def transition_session(
 
     from_state = session.state
     if park_input is not None:
+        vehicle = await get_or_create_vehicle(db, park_input.registration_number)
+        session.vehicle_id = vehicle.id
         session.parking_zone_id = park_input.parking_zone_id
         session.parking_slot_id = park_input.parking_slot_id
-        session.key_tag = park_input.key_tag
 
     session.state = to_state
     await record_event(db, session, from_state, to_state, actor, note=note)
+
+    if to_state in TAG_RELEASED_ON_STATES and session.qr_code_id:
+        await db.execute(update(QRCode).where(QRCode.id == session.qr_code_id).values(status=TagStatus.AVAILABLE))
+
     await db.commit()
     await db.refresh(session)
 

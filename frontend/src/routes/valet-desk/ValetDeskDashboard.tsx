@@ -21,11 +21,10 @@ export function ValetDeskDashboard() {
   const [sessions, setSessions] = useState<ValetSession[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [newReg, setNewReg] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newName, setNewName] = useState('')
   const [parkingSession, setParkingSession] = useState<ValetSession | null>(null)
-  const [keyTag, setKeyTag] = useState('')
+  const [parkReg, setParkReg] = useState('')
 
   const load = useCallback(async () => {
     if (!venueId || !accessToken) return
@@ -61,12 +60,10 @@ export function ValetDeskDashboard() {
       await apiFetch(`/venues/${venueId}/sessions`, accessToken, {
         method: 'POST',
         body: JSON.stringify({
-          registration_number: newReg,
           guest_phone_number: newPhone,
           guest_name: newName || null,
         }),
       })
-      setNewReg('')
       setNewPhone('')
       setNewName('')
       await load()
@@ -95,10 +92,10 @@ export function ValetDeskDashboard() {
     try {
       await apiFetch(`/sessions/${parkingSession.id}/park`, accessToken, {
         method: 'POST',
-        body: JSON.stringify({ key_tag: keyTag, parking_zone_id: null, parking_slot_id: null }),
+        body: JSON.stringify({ registration_number: parkReg, parking_zone_id: null, parking_slot_id: null }),
       })
       setParkingSession(null)
-      setKeyTag('')
+      setParkReg('')
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to park vehicle')
@@ -128,14 +125,7 @@ export function ValetDeskDashboard() {
 
       {error && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{error}</p>}
 
-      <form onSubmit={createSession} className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-4">
-        <input
-          required
-          placeholder="Vehicle reg. number"
-          value={newReg}
-          onChange={(e) => setNewReg(e.target.value)}
-          className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-        />
+      <form onSubmit={createSession} className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-gray-800 bg-gray-900 p-4 sm:grid-cols-3">
         <input
           required
           placeholder="Guest phone (+91...)"
@@ -150,18 +140,18 @@ export function ValetDeskDashboard() {
           className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
         />
         <button type="submit" className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium hover:bg-indigo-500">
-          New Request
+          New Request (for a guest without WhatsApp)
         </button>
       </form>
 
       {parkingSession && (
         <form onSubmit={submitPark} className="mb-6 flex items-center gap-3 rounded-lg border border-amber-800 bg-amber-950/40 p-4">
-          <span className="text-sm">Parking {parkingSession.registration_number} — key tag:</span>
+          <span className="text-sm">Parking {parkingSession.tag_label} — registration number:</span>
           <input
             required
             autoFocus
-            value={keyTag}
-            onChange={(e) => setKeyTag(e.target.value)}
+            value={parkReg}
+            onChange={(e) => setParkReg(e.target.value)}
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
           />
           <button type="submit" className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium hover:bg-amber-500">
@@ -186,10 +176,10 @@ export function ValetDeskDashboard() {
           return (
             <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4">
               <div>
-                <p className="font-medium">{s.registration_number}</p>
+                <p className="font-medium">{s.tag_label ?? 'Unknown tag'}</p>
                 <p className="text-sm text-gray-400">
                   {s.guest_phone_number} · <span className="uppercase tracking-wide">{s.state.replace('_', ' ')}</span>
-                  {s.key_tag ? ` · key ${s.key_tag}` : ''}
+                  {s.registration_number ? ` · ${s.registration_number}` : ''}
                 </p>
               </div>
 
@@ -233,7 +223,7 @@ export function ValetDeskDashboard() {
           <div className="space-y-1">
             {finished.map((s) => (
               <div key={s.id} className="rounded-md border border-gray-900 bg-gray-950 px-4 py-2 text-sm text-gray-500">
-                {s.registration_number} — {s.state}
+                {s.tag_label} — {s.registration_number} — {s.state}
               </div>
             ))}
           </div>

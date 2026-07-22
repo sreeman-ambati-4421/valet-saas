@@ -2,11 +2,13 @@
 
 Multi-tenant, WhatsApp-first valet parking management platform. Full business requirements: [`docs/valet_parking_brd.pdf`](docs/valet_parking_brd.pdf).
 
-**Current status: Phase 1 — Foundation + thin vertical slice.** Auth, tenancy, RBAC, WhatsApp/Twilio integration (QR scan → reg. number capture → status updates), and a full session lifecycle (request → accept → park → retrieval requested → retrieving → ready → complete) are working end-to-end.
+**Current status: Phase 1 — Foundation + thin vertical slice.** Auth, tenancy, RBAC, WhatsApp/Twilio integration (tag scan → status updates), and a full session lifecycle (request → accept → park → retrieval requested → retrieving → ready → complete) are working end-to-end.
+
+**Physical key tags, not a fixed venue QR.** A venue pre-generates a pool of QR-coded tags, printed onto plastic key fobs. Guest scans a tag on arrival (WhatsApp opens, request created instantly — no reg. number question), the driver keeps that same tag attached to the vehicle's keys, and it's released back to the available pool the moment the session completes. Registration number is captured from the driver at the **Mark Parked** step instead, since the tag — not the reg. number — is what links guest to vehicle now.
 
 **Roles.** There is no driver-facing role: valet drivers never touch the app. They're coordinated verbally by whoever's at the desk.
 - `saas_owner` — platform operator; onboards tenants and their business owner.
-- `business_owner` — owns a tenant (hotel/restaurant/venue group); manages venues, QR codes, and desk staff across all their venues.
+- `business_owner` — owns a tenant (hotel/restaurant/venue group); manages venues, key tags, and desk staff across all their venues.
 - `valet_desk` — the person at the valet desk; accepts guest requests, dispatches drivers verbally, and reports status back over WhatsApp (park confirmed / retrieving / ready). New requests also notify every desk person with access to that venue over WhatsApp, with a short code (`ACCEPT-<code>`) they can reply with to claim it remotely — same underlying atomic accept as the dashboard button, so only one of them wins if both try.
 
 ## Architecture

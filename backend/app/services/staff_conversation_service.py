@@ -69,6 +69,6 @@ async def handle_inbound_message(db: AsyncSession, user: User, body: str) -> Non
         _reply(user.phone_number, "Someone else already claimed that request.")
         return
 
-    vehicle = await db.get(Vehicle, accepted.vehicle_id)
+    vehicle = await db.get(Vehicle, accepted.vehicle_id) if accepted.vehicle_id else None
     reg = vehicle.registration_number if vehicle else "the vehicle"
     _reply(user.phone_number, f"You've got it -- {reg}.")

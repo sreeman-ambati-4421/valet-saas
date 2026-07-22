@@ -42,7 +42,13 @@ class ValetSession(Base, UUIDPk, TimestampMixin):
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), index=True)
     venue_id: Mapped[str] = mapped_column(ForeignKey("venues.id"), index=True)
     guest_id: Mapped[str] = mapped_column(ForeignKey("guests.id"), index=True)
-    vehicle_id: Mapped[str] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    # Null until parked: the registration number is now captured from the
+    # driver at the Mark Parked step, not from the guest at request time.
+    vehicle_id: Mapped[str | None] = mapped_column(ForeignKey("vehicles.id"), nullable=True, index=True)
+    # The physical key tag attached to this vehicle for the session's
+    # duration -- set at creation (scanned by the guest, or auto-assigned
+    # for a staff-created session), released back to AVAILABLE on
+    # completion/cancellation.
     qr_code_id: Mapped[str | None] = mapped_column(ForeignKey("qr_codes.id"), nullable=True)
 
     accepted_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
@@ -52,7 +58,6 @@ class ValetSession(Base, UUIDPk, TimestampMixin):
 
     parking_zone_id: Mapped[str | None] = mapped_column(ForeignKey("parking_zones.id"), nullable=True)
     parking_slot_id: Mapped[str | None] = mapped_column(ForeignKey("parking_slots.id"), nullable=True)
-    key_tag: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # True only for sessions created by the guest scanning a QR code and
     # messaging WhatsApp directly. For these, retrieval can only be

@@ -2,24 +2,16 @@ from unittest.mock import patch
 
 from sqlalchemy import select
 
-from app.models.parking import QRCode
+from app.models.parking import QRCode, TagStatus
 from app.models.session import SessionState, ValetSession
 from app.models.user import UserRole
 from app.models.vehicle_guest import Guest, Vehicle
-from tests.conftest import auth_header, make_tenant, make_user, make_venue
+from tests.conftest import auth_header, make_qr_code, make_tenant, make_user, make_venue
 
 GUEST_PHONE = "+911111111111"
 
 
-async def _make_qr(db, venue, token="test-token"):
-    qr = QRCode(venue_id=venue.id, token=token, label="Main Entrance")
-    db.add(qr)
-    await db.commit()
-    await db.refresh(qr)
-    return qr
-
-
-async def _make_active_session(db, tenant, venue, guest_phone, state, created_via_whatsapp=False):
+async def _make_active_session(db, tenant, venue, guest_phone, state, created_via_whatsapp=False, qr_code_id=None):
     guest = Guest(whatsapp_phone_number=guest_phone)
     db.add(guest)
     await db.flush()
@@ -31,6 +23,7 @@ async def _make_active_session(db, tenant, venue, guest_phone, state, created_vi
         venue_id=venue.id,
         guest_id=guest.id,
         vehicle_id=vehicle.id,
+        qr_code_id=qr_code_id,
         state=state,
         created_via_whatsapp=created_via_whatsapp,
     )
@@ -52,19 +45,15 @@ async def _post_webhook(client, from_phone: str, body: str):
     return resp, mock_send
 
 
-async def test_qr_scan_then_reg_number_creates_session(client, db):
+async def test_qr_scan_creates_session_immediately(client, db):
     tenant = await make_tenant(db)
     venue = await make_venue(db, tenant)
-    qr = await _make_qr(db, venue)
+    qr = await make_qr_code(db, venue, label="Tag 1", token="test-token")
 
-    resp1, mock_send1 = await _post_webhook(client, GUEST_PHONE, f"QR:{qr.token}")
-    assert resp1.status_code == 200
-    mock_send1.assert_called_once()
-    assert "registration number" in mock_send1.call_args[0][1]
-
-    resp2, mock_send2 = await _post_webhook(client, GUEST_PHONE, "ka01 ab 1234")
-    assert resp2.status_code == 200
-    mock_send2.assert_called_once()
+    resp, mock_send = await _post_webhook(client, GUEST_PHONE, f"QR:{qr.token}")
+    assert resp.status_code == 200
+    mock_send.assert_called_once()
+    assert "We've got your request" in mock_send.call_args[0][1]
 
     result = await db.execute(select(ValetSession))
     sessions = result.scalars().all()
@@ -72,10 +61,26 @@ async def test_qr_scan_then_reg_number_creates_session(client, db):
     assert sessions[0].state == SessionState.REQUESTED
     assert sessions[0].venue_id == venue.id
     assert sessions[0].created_via_whatsapp is True
+    assert sessions[0].qr_code_id == qr.id
+    assert sessions[0].vehicle_id is None  # not known until parked
 
-    guest_result = await db.execute(select(Guest))
-    guest = guest_result.scalars().first()
-    assert guest.pending_venue_id is None
+    await db.refresh(qr)
+    assert qr.status == TagStatus.IN_USE
+
+
+async def test_scan_of_in_use_tag_is_rejected(client, db):
+    tenant = await make_tenant(db)
+    venue = await make_venue(db, tenant)
+    qr = await make_qr_code(db, venue, status=TagStatus.IN_USE)
+
+    resp, mock_send = await _post_webhook(client, GUEST_PHONE, f"QR:{qr.token}")
+
+    assert resp.status_code == 200
+    mock_send.assert_called_once()
+    assert "in use" in mock_send.call_args[0][1].lower()
+
+    result = await db.execute(select(ValetSession))
+    assert result.scalars().all() == []
 
 
 async def test_unknown_qr_token_no_session_created(client, db):
@@ -162,10 +167,11 @@ async def test_staff_parking_session_sends_guest_whatsapp(client, db):
     venue = await make_venue(db, tenant)
     owner = await make_user(db, UserRole.BUSINESS_OWNER, tenant=tenant, venues=[venue])
     desk = await make_user(db, UserRole.VALET_DESK, tenant=tenant, venues=[venue])
+    await make_qr_code(db, venue)
 
     create_resp = await client.post(
         f"/venues/{venue.id}/sessions",
-        json={"registration_number": "XY1234", "guest_phone_number": GUEST_PHONE},
+        json={"guest_phone_number": GUEST_PHONE},
         headers=auth_header(owner),
     )
     sid = create_resp.json()["id"]
@@ -174,7 +180,7 @@ async def test_staff_parking_session_sends_guest_whatsapp(client, db):
     with patch("app.core.twilio_client.send_whatsapp_text") as mock_send:
         park_resp = await client.post(
             f"/sessions/{sid}/park",
-            json={"key_tag": "K-1", "parking_zone_id": None, "parking_slot_id": None},
+            json={"registration_number": "XY1234", "parking_zone_id": None, "parking_slot_id": None},
             headers=auth_header(desk),
         )
 

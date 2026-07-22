@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.core.config import settings
 from app.core.db import Base, get_db
 from app.main import app
+from app.models.parking import QRCode, TagStatus
 from app.models.tenant import Tenant, Venue
 from app.models.user import User, UserRole, UserVenueAccess
 
@@ -101,3 +102,13 @@ async def make_venue(db, tenant: Tenant, name: str = "Test Venue") -> Venue:
     await db.commit()
     await db.refresh(venue)
     return venue
+
+
+async def make_qr_code(
+    db, venue: Venue, label: str = "Tag 1", token: str | None = None, status: TagStatus = TagStatus.AVAILABLE
+) -> QRCode:
+    qr = QRCode(venue_id=venue.id, token=token or f"tok-{uuid.uuid4()}", label=label, status=status)
+    db.add(qr)
+    await db.commit()
+    await db.refresh(qr)
+    return qr

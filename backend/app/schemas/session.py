@@ -6,15 +6,18 @@ from app.models.session import SessionState
 
 
 class SessionCreate(BaseModel):
-    registration_number: str
     guest_phone_number: str
     guest_name: str | None = None
+    # The specific physical tag the guest scanned. Omitted for a
+    # staff-created session (guest without WhatsApp) -- the backend
+    # auto-assigns any available tag for the venue in that case.
+    qr_code_id: str | None = None
 
 
 class ParkInput(BaseModel):
     parking_zone_id: str | None = None
     parking_slot_id: str | None = None
-    key_tag: str
+    registration_number: str
 
 
 class SessionEventOut(BaseModel):
@@ -33,17 +36,18 @@ class SessionOut(BaseModel):
     tenant_id: str
     venue_id: str
     guest_id: str
-    vehicle_id: str
+    vehicle_id: str | None
+    qr_code_id: str | None
     accepted_by_user_id: str | None
     created_via_whatsapp: bool
     state: SessionState
     parking_zone_id: str | None
     parking_slot_id: str | None
-    key_tag: str | None
     created_at: datetime
     updated_at: datetime
     registration_number: str | None = None
     guest_phone_number: str | None = None
+    tag_label: str | None = None
 
     model_config = {"from_attributes": True}
 

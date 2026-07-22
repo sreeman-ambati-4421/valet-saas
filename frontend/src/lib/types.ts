@@ -32,12 +32,15 @@ export interface Venue {
   created_at: string
 }
 
+export type TagStatus = 'available' | 'in_use'
+
 export interface QRCode {
   id: string
   venue_id: string
   token: string
   label: string | null
   is_active: boolean
+  status: TagStatus
   wa_link: string
 }
 
@@ -55,17 +58,18 @@ export interface ValetSession {
   tenant_id: string
   venue_id: string
   guest_id: string
-  vehicle_id: string
+  vehicle_id: string | null
+  qr_code_id: string | null
   accepted_by_user_id: string | null
   created_via_whatsapp: boolean
   state: SessionState
   parking_zone_id: string | null
   parking_slot_id: string | null
-  key_tag: string | null
   created_at: string
   updated_at: string
   registration_number: string | null
   guest_phone_number: string | null
+  tag_label: string | null
 }
 
 export interface SessionEvent {

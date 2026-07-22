@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.deps import get_current_user, require_role, require_venue_access
+from app.models.parking import QRCode
 from app.models.session import SessionState, ValetSession
 from app.models.tenant import Venue
 from app.models.user import User, UserRole
@@ -18,11 +19,13 @@ ADMIN_OVERRIDE_ROLES = (UserRole.BUSINESS_OWNER, UserRole.SAAS_OWNER)
 
 
 async def _enrich(db: AsyncSession, session: ValetSession) -> SessionOut:
-    vehicle = await db.get(Vehicle, session.vehicle_id)
+    vehicle = await db.get(Vehicle, session.vehicle_id) if session.vehicle_id else None
     guest = await db.get(Guest, session.guest_id)
+    tag = await db.get(QRCode, session.qr_code_id) if session.qr_code_id else None
     out = SessionOut.model_validate(session)
     out.registration_number = vehicle.registration_number if vehicle else None
     out.guest_phone_number = guest.whatsapp_phone_number if guest else None
+    out.tag_label = tag.label if tag else None
     return out
 
 

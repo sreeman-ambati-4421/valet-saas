@@ -26,9 +26,11 @@ export function BusinessOwnerDashboard() {
   const [venueError, setVenueError] = useState<string | null>(null)
   const [venueSubmitting, setVenueSubmitting] = useState(false)
 
-  const [qrCodes, setQrCodes] = useState<Record<string, QRCode>>({})
-  const [qrError, setQrError] = useState<string | null>(null)
-  const [qrLoadingVenueId, setQrLoadingVenueId] = useState<string | null>(null)
+  const [expandedVenueId, setExpandedVenueId] = useState<string | null>(null)
+  const [tagsByVenue, setTagsByVenue] = useState<Record<string, QRCode[]>>({})
+  const [tagCount, setTagCount] = useState(10)
+  const [tagError, setTagError] = useState<string | null>(null)
+  const [tagLoadingVenueId, setTagLoadingVenueId] = useState<string | null>(null)
 
   const [staffName, setStaffName] = useState('')
   const [staffPhone, setStaffPhone] = useState('')
@@ -86,20 +88,36 @@ export function BusinessOwnerDashboard() {
     }
   }
 
-  async function generateQrCode(venueId: string) {
+  async function loadTags(venueId: string) {
     if (!accessToken) return
-    setQrLoadingVenueId(venueId)
-    setQrError(null)
     try {
-      const qr = await apiFetch<QRCode>(`/venues/${venueId}/qr-codes`, accessToken, {
-        method: 'POST',
-        body: JSON.stringify({ label: 'Main Entrance' }),
-      })
-      setQrCodes((prev) => ({ ...prev, [venueId]: qr }))
+      const tags = await apiFetch<QRCode[]>(`/venues/${venueId}/qr-codes`, accessToken)
+      setTagsByVenue((prev) => ({ ...prev, [venueId]: tags }))
     } catch (err) {
-      setQrError(err instanceof ApiError ? err.message : 'Failed to generate QR code')
+      setTagError(err instanceof ApiError ? err.message : 'Failed to load tags')
+    }
+  }
+
+  function toggleVenueTags(venueId: string) {
+    const next = expandedVenueId === venueId ? null : venueId
+    setExpandedVenueId(next)
+    if (next) void loadTags(next)
+  }
+
+  async function generateTags(venueId: string) {
+    if (!accessToken || tagCount < 1) return
+    setTagLoadingVenueId(venueId)
+    setTagError(null)
+    try {
+      await apiFetch<QRCode[]>(`/venues/${venueId}/qr-codes`, accessToken, {
+        method: 'POST',
+        body: JSON.stringify({ count: tagCount }),
+      })
+      await loadTags(venueId)
+    } catch (err) {
+      setTagError(err instanceof ApiError ? err.message : 'Failed to generate tags')
     } finally {
-      setQrLoadingVenueId(null)
+      setTagLoadingVenueId(null)
     }
   }
 
@@ -154,12 +172,14 @@ export function BusinessOwnerDashboard() {
       </form>
       {venueError && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{venueError}</p>}
 
-      {qrError && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{qrError}</p>}
+      {tagError && <p className="mb-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{tagError}</p>}
 
       <div className="mb-8 space-y-2">
         {(!me || me.venues.length === 0) && <p className="text-gray-500">No venues yet.</p>}
         {me?.venues.map((v) => {
-          const qr = qrCodes[v.id]
+          const isExpanded = expandedVenueId === v.id
+          const tags = tagsByVenue[v.id] ?? []
+          const availableCount = tags.filter((t) => t.status === 'available').length
           return (
             <div key={v.id} className="rounded-lg border border-gray-800 bg-gray-900 p-4">
               <div className="flex items-center justify-between">
@@ -168,26 +188,60 @@ export function BusinessOwnerDashboard() {
                   <p className="text-xs text-gray-500">{v.id}</p>
                 </div>
                 <button
-                  onClick={() => void generateQrCode(v.id)}
-                  disabled={qrLoadingVenueId === v.id}
-                  className="rounded-md border border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-800 disabled:opacity-50"
+                  onClick={() => toggleVenueTags(v.id)}
+                  className="rounded-md border border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-800"
                 >
-                  {qrLoadingVenueId === v.id ? 'Generating…' : 'Generate QR Code'}
+                  {isExpanded ? 'Hide Tags' : 'Manage Key Tags'}
                 </button>
               </div>
-              {qr && (
-                <div className="mt-4 flex items-center gap-4 border-t border-gray-800 pt-4">
-                  <img
-                    src={`${API_URL}/qr-codes/${qr.id}/image`}
-                    alt={`QR code for ${v.name}`}
-                    className="h-32 w-32 rounded bg-white p-2"
-                  />
-                  <div className="text-sm">
-                    <p className="text-gray-400">Guests scan this to start a valet request on WhatsApp.</p>
-                    <a href={qr.wa_link} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">
-                      {qr.wa_link}
-                    </a>
+
+              {isExpanded && (
+                <div className="mt-4 space-y-4 border-t border-gray-800 pt-4">
+                  <p className="text-sm text-gray-400">
+                    {tags.length} tag{tags.length === 1 ? '' : 's'} total, {availableCount} available.
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={tagCount}
+                      onChange={(e) => setTagCount(Number(e.target.value))}
+                      className="w-24 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+                    />
+                    <button
+                      onClick={() => void generateTags(v.id)}
+                      disabled={tagLoadingVenueId === v.id}
+                      className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
+                    >
+                      {tagLoadingVenueId === v.id ? 'Generating…' : 'Generate Tags'}
+                    </button>
                   </div>
+
+                  {tags.length > 0 && (
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      {tags.map((tag) => (
+                        <div key={tag.id} className="rounded-md border border-gray-800 bg-gray-950 p-2 text-center">
+                          <img
+                            src={`${API_URL}/qr-codes/${tag.id}/image`}
+                            alt={tag.label ?? tag.id}
+                            className="mx-auto h-24 w-24 rounded bg-white p-1"
+                          />
+                          <p className="mt-1 text-xs font-medium">{tag.label}</p>
+                          <p
+                            className={`text-xs ${tag.status === 'available' ? 'text-emerald-400' : 'text-amber-400'}`}
+                          >
+                            {tag.status === 'available' ? 'Available' : 'In use'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Print each QR + label onto a plastic key tag. Guests scan it on arrival to start their
+                    WhatsApp request; the driver keeps the same tag attached to the keys until pickup.
+                  </p>
                 </div>
               )}
             </div>
@@ -291,17 +345,17 @@ export function BusinessOwnerDashboard() {
                   <th className="px-4 py-2">Reg. Number</th>
                   <th className="px-4 py-2">Guest Phone</th>
                   <th className="px-4 py-2">State</th>
-                  <th className="px-4 py-2">Key Tag</th>
+                  <th className="px-4 py-2">Tag</th>
                   <th className="px-4 py-2">Updated</th>
                 </tr>
               </thead>
               <tbody>
                 {sessions.map((s) => (
                   <tr key={s.id} className="border-t border-gray-800">
-                    <td className="px-4 py-2 font-medium">{s.registration_number}</td>
+                    <td className="px-4 py-2 font-medium">{s.registration_number ?? '—'}</td>
                     <td className="px-4 py-2 text-gray-400">{s.guest_phone_number}</td>
                     <td className="px-4 py-2 uppercase tracking-wide text-gray-300">{s.state.replace('_', ' ')}</td>
-                    <td className="px-4 py-2 text-gray-400">{s.key_tag ?? '—'}</td>
+                    <td className="px-4 py-2 text-gray-400">{s.tag_label ?? '—'}</td>
                     <td className="px-4 py-2 text-gray-500">{new Date(s.updated_at).toLocaleTimeString()}</td>
                   </tr>
                 ))}
