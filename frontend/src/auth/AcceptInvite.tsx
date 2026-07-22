@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiFetch, ApiError } from '../lib/api'
+import { PasswordInput } from '../components/PasswordInput'
 
 export function AcceptInvite() {
   const navigate = useNavigate()
@@ -49,29 +50,8 @@ export function AcceptInvite() {
         <h1 className="text-xl font-semibold text-gray-100">Welcome — set your password</h1>
         <p className="text-sm text-gray-400">You've been invited to the Valet Parking platform. Choose a password to finish setting up your account.</p>
 
-        <div className="space-y-1">
-          <label className="text-sm text-gray-400">Password</label>
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 outline-none focus:border-indigo-500"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm text-gray-400">Confirm password</label>
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 outline-none focus:border-indigo-500"
-          />
-        </div>
+        <PasswordInput label="Password" value={password} onChange={setPassword} minLength={8} autoFocus />
+        <PasswordInput label="Confirm password" value={confirm} onChange={setConfirm} minLength={8} />
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 

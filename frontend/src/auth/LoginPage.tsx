@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import { PasswordInput } from '../components/PasswordInput'
 
 export function LoginPage() {
   const [phone, setPhone] = useState('')
@@ -33,16 +34,7 @@ export function LoginPage() {
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm text-gray-400">Password</label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100 outline-none focus:border-indigo-500"
-          />
-        </div>
+        <PasswordInput label="Password" value={password} onChange={setPassword} />
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
